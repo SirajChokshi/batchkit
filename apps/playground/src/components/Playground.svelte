@@ -8,9 +8,7 @@ import EventLog from './EventLog.svelte';
 import Timeline from './Timeline.svelte';
 
 // Configuration state
-let schedulerType = $state<
-  'microtask' | 'window' | 'animationFrame' | 'idle' | 'manual'
->('microtask');
+let schedulerType: 'microtask' | 'window' | 'animationFrame' | 'idle' | 'manual' = $state('microtask');
 let windowDelay = $state(10);
 let maxBatchSize = $state(0); // 0 = unlimited
 let resolverDelay = $state(50);
@@ -19,9 +17,7 @@ let resolverDelay = $state(50);
 const telemetry = createTelemetryState();
 
 // Current batcher instance
-let batcher = $state<Batcher<string, { id: string; value: string }> | null>(
-  null,
-);
+let batcher: Batcher<string, { id: string; value: string }> | null = $state(null);
 let keyCounter = $state(0);
 
 // Simulated database

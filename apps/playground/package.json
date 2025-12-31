@@ -9,14 +9,14 @@
     "preview": "astro preview"
   },
   "dependencies": {
-    "@astrojs/svelte": "7.0.0",
-    "@tailwindcss/vite": "4.1.18",
-    "astro": "5.0.0",
+    "@astrojs/svelte": "^7.0.0",
+    "@tailwindcss/vite": "^4.1.18",
+    "astro": "^5.0.0",
     "batchkit": "workspace:*",
-    "svelte": "5.0.0",
-    "tailwindcss": "4.1.18"
+    "svelte": "^5.0.0",
+    "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
-    "typescript": "5.3.3"
+    "typescript": "^5.3.3"
   }
 }

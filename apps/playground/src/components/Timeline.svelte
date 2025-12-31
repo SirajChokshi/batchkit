@@ -5,19 +5,19 @@ import type {
   TimelineEvent,
 } from '../lib/useBatcherTelemetry.svelte';
 
-interface Props {
+  interface Props {
   events: TimelineEvent[];
   batches: Map<string, BatchGroup>;
-}
+  }
 
 const { events, batches }: Props = $props();
 
 // Selected row for highlighting
-let selectedBatchId = $state<string | null>(null);
-let hoveredBatchId = $state<string | null>(null);
+let selectedBatchId: string | null = $state(null);
+let hoveredBatchId: string | null = $state(null);
 
-// Build batch rows with their load events
-interface BatchRow {
+  // Build batch rows with their load events
+  interface BatchRow {
   batchId: string;
   loads: Array<{ id: string; key: unknown; time: number; deduped: boolean }>;
   scheduleTime: number;
@@ -27,12 +27,12 @@ interface BatchRow {
   status: 'pending' | 'dispatching' | 'resolved' | 'error' | 'aborted';
   keyCount: number;
   keys: unknown[];
-}
+  }
 
-// Time window for the visualization
+  // Time window for the visualization
 const timeWindow = $derived.by(() => {
   if (events.length === 0) return { start: 0, end: 1000 };
-
+    
   const times = events.map((e) => e.relativeTime);
   const minTime = Math.min(...times);
   const maxTime = Math.max(...times);
@@ -44,7 +44,7 @@ const timeWindow = $derived.by(() => {
   };
 });
 
-// Build rows from events
+  // Build rows from events
 const batchRows = $derived.by(() => {
   const rows: BatchRow[] = [];
   let currentLoads: Array<{
@@ -54,37 +54,37 @@ const batchRows = $derived.by(() => {
     deduped: boolean;
   }> = [];
   let currentScheduleTime = 0;
-
-  for (const event of events) {
+    
+    for (const event of events) {
     const data = event.data as TraceEvent;
-
-    if (data.type === 'get') {
-      currentLoads.push({
-        id: event.id,
-        key: data.key,
-        time: event.relativeTime,
-        deduped: false,
+      
+      if (data.type === 'get') {
+        currentLoads.push({
+          id: event.id,
+          key: data.key,
+          time: event.relativeTime,
+          deduped: false,
       });
-    } else if (data.type === 'dedup') {
-      currentLoads.push({
-        id: event.id,
-        key: data.key,
-        time: event.relativeTime,
-        deduped: true,
+      } else if (data.type === 'dedup') {
+        currentLoads.push({
+          id: event.id,
+          key: data.key,
+          time: event.relativeTime,
+          deduped: true,
       });
     } else if (data.type === 'schedule') {
       currentScheduleTime = event.relativeTime;
-    } else if (data.type === 'dispatch') {
+      } else if (data.type === 'dispatch') {
       const batch = batches.get(data.batchId);
-
-      rows.push({
-        batchId: data.batchId,
+        
+        rows.push({
+          batchId: data.batchId,
         loads: [...currentLoads],
         scheduleTime:
           currentScheduleTime || currentLoads[0]?.time || event.relativeTime,
-        dispatchTime: event.relativeTime,
-        resolveTime: batch?.endTime ?? null,
-        duration: batch?.duration ?? null,
+          dispatchTime: event.relativeTime,
+          resolveTime: batch?.endTime ?? null,
+          duration: batch?.duration ?? null,
         status:
           batch?.status === 'error'
             ? 'error'
@@ -93,39 +93,39 @@ const batchRows = $derived.by(() => {
               : batch?.status === 'resolved'
                 ? 'resolved'
                 : 'dispatching',
-        keyCount: data.keys.length,
+          keyCount: data.keys.length,
         keys: data.keys,
       });
-
+        
       currentLoads = [];
       currentScheduleTime = 0;
+      }
     }
-  }
-
+    
   // Pending batch (not yet dispatched)
-  if (currentLoads.length > 0) {
-    rows.push({
-      batchId: 'pending',
+    if (currentLoads.length > 0) {
+      rows.push({
+        batchId: 'pending',
       loads: currentLoads,
       scheduleTime: currentLoads[0]?.time ?? 0,
-      dispatchTime: currentLoads[currentLoads.length - 1]?.time ?? 0,
-      resolveTime: null,
-      duration: null,
+        dispatchTime: currentLoads[currentLoads.length - 1]?.time ?? 0,
+        resolveTime: null,
+        duration: null,
       status: 'pending',
       keyCount: currentLoads.filter((l) => !l.deduped).length,
       keys: currentLoads.filter((l) => !l.deduped).map((l) => l.key),
     });
-  }
-
+    }
+    
   return rows;
 });
 
-function timeToPercent(time: number): number {
+  function timeToPercent(time: number): number {
   const { start, end } = timeWindow;
   return ((time - start) / (end - start)) * 100;
-}
+  }
 
-function formatTime(ms: number): string {
+  function formatTime(ms: number): string {
   if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
   return `${ms.toFixed(0)}ms`;
 }
@@ -134,12 +134,12 @@ function formatDuration(ms: number): string {
   if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
   if (ms >= 100) return `${ms.toFixed(0)}ms`;
   return `${ms.toFixed(1)}ms`;
-}
+  }
 
-function formatKey(key: unknown): string {
+  function formatKey(key: unknown): string {
   if (typeof key === 'string') return key;
   return JSON.stringify(key);
-}
+  }
 
 function getStatusLabel(status: BatchRow['status']): string {
   switch (status) {
@@ -180,26 +180,26 @@ const timeMarkers = $derived.by(() => {
   const { start, end } = timeWindow;
   const range = end - start;
   if (range <= 0) return [];
-
+    
   // Calculate nice step sizes
   const targetMarkers = 6;
   const rawStep = range / targetMarkers;
   const magnitude = 10 ** Math.floor(Math.log10(rawStep));
   const normalized = rawStep / magnitude;
-
+    
   let step: number;
   if (normalized <= 1) step = magnitude;
   else if (normalized <= 2) step = 2 * magnitude;
   else if (normalized <= 5) step = 5 * magnitude;
   else step = 10 * magnitude;
-
+    
   const markers: number[] = [];
   let t = Math.ceil(start / step) * step;
   while (t <= end && markers.length < 10) {
     markers.push(t);
     t += step;
-  }
-
+    }
+    
   return markers;
 });
 </script>
@@ -236,7 +236,7 @@ const timeMarkers = $derived.by(() => {
       <div class="px-3 py-2 border-r border-stone-800">Status</div>
       <div class="px-3 py-2 border-r border-stone-800">Time</div>
       <div class="px-3 py-2">Waterfall</div>
-    </div>
+      </div>
 
     <!-- Table body with custom scrollbar -->
     <div class="timeline-scroll flex-1 overflow-y-auto overflow-x-hidden">
@@ -257,12 +257,12 @@ const timeMarkers = $derived.by(() => {
           <!-- Batch ID -->
           <div class="px-3 py-2 border-r border-stone-800 flex items-center" title={getKeysTooltip(row)}>
             <span class="text-[11px] font-mono text-stone-300">
-              {#if row.batchId === 'pending'}
+                {#if row.batchId === 'pending'}
                 <span class="text-stone-500">pending</span>
-              {:else}
-                #{row.batchId.split('-').pop()}
-              {/if}
-            </span>
+                {:else}
+                  #{row.batchId.split('-').pop()}
+                {/if}
+              </span>
             <span class="text-[10px] text-stone-600 ml-1.5">{row.keyCount}k</span>
           </div>
 
@@ -290,7 +290,7 @@ const timeMarkers = $derived.by(() => {
                 ...
               {/if}
             </span>
-          </div>
+            </div>
 
           <!-- Waterfall -->
           <div class="px-2 py-2 flex items-center min-w-0">
@@ -302,9 +302,9 @@ const timeMarkers = $derived.by(() => {
                   style="left: {timeToPercent(marker)}%"
                 ></div>
               {/each}
-              
+
               <!-- Waterfall bar -->
-              <div 
+                <div 
                 class="absolute top-1/2 -translate-y-1/2 h-3 flex"
                 style="left: {dims.startPct}%; width: {dims.width}%;"
               >
@@ -337,11 +337,11 @@ const timeMarkers = $derived.by(() => {
                   {formatTime(row.scheduleTime)}
                 </div>
               {/if}
+              </div>
             </div>
           </div>
-        </div>
-      {/each}
-    </div>
+        {/each}
+      </div>
 
     <!-- Time ruler footer -->
     <div class="relative h-5 border-t border-stone-700 bg-stone-900 shrink-0 ml-[220px] mr-2">
@@ -364,25 +364,25 @@ const timeMarkers = $derived.by(() => {
     scrollbar-width: thin;
     scrollbar-color: #44403c #1c1917;
   }
-  
+
   .timeline-scroll::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-  
+
   .timeline-scroll::-webkit-scrollbar-track {
     background: #1c1917;
   }
-  
+
   .timeline-scroll::-webkit-scrollbar-thumb {
     background: #44403c;
     border: 2px solid #1c1917;
   }
-  
+
   .timeline-scroll::-webkit-scrollbar-thumb:hover {
     background: #57534e;
   }
-  
+
   .timeline-scroll::-webkit-scrollbar-corner {
     background: #1c1917;
   }
