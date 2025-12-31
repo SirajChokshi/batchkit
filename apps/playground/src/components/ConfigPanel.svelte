@@ -1,23 +1,23 @@
 <script lang="ts">
-  interface Props {
-    schedulerType: 'microtask' | 'window' | 'animationFrame' | 'idle' | 'manual'
-    windowDelay: number
-    maxBatchSize: number
-    resolverDelay: number
-    onConfigChange: () => void
-  }
+interface Props {
+  schedulerType: 'microtask' | 'window' | 'animationFrame' | 'idle' | 'manual';
+  windowDelay: number;
+  maxBatchSize: number;
+  resolverDelay: number;
+  onConfigChange: () => void;
+}
 
-  let { 
-    schedulerType = $bindable(), 
-    windowDelay = $bindable(), 
-    maxBatchSize = $bindable(),
-    resolverDelay = $bindable(),
-    onConfigChange 
-  }: Props = $props()
+const {
+  schedulerType = $bindable(),
+  windowDelay = $bindable(),
+  maxBatchSize = $bindable(),
+  resolverDelay = $bindable(),
+  onConfigChange,
+}: Props = $props();
 
-  function handleChange() {
-    onConfigChange()
-  }
+function handleChange() {
+  onConfigChange();
+}
 </script>
 
 <div class="bg-stone-900 p-4 border-b border-stone-700">

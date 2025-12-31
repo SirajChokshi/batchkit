@@ -1,116 +1,123 @@
 <script lang="ts">
-  import { batch, onAnimationFrame, onIdle } from 'batchkit'
-  import type { Batcher, Scheduler } from 'batchkit'
-  import { createTelemetryState } from '../lib/useBatcherTelemetry.svelte'
-  import ConfigPanel from './ConfigPanel.svelte'
-  import Controls from './Controls.svelte'
-  import Timeline from './Timeline.svelte'
-  import EventLog from './EventLog.svelte'
+import type { Batcher, Scheduler } from 'batchkit';
+import { batch, onAnimationFrame, onIdle } from 'batchkit';
+import { createTelemetryState } from '../lib/useBatcherTelemetry.svelte';
+import ConfigPanel from './ConfigPanel.svelte';
+import Controls from './Controls.svelte';
+import EventLog from './EventLog.svelte';
+import Timeline from './Timeline.svelte';
 
-  // Configuration state
-  let schedulerType = $state<'microtask' | 'window' | 'animationFrame' | 'idle' | 'manual'>('microtask')
-  let windowDelay = $state(10)
-  let maxBatchSize = $state(0) // 0 = unlimited
-  let resolverDelay = $state(50)
+// Configuration state
+const schedulerType = $state<
+  'microtask' | 'window' | 'animationFrame' | 'idle' | 'manual'
+>('microtask');
+const windowDelay = $state(10);
+const maxBatchSize = $state(0); // 0 = unlimited
+const resolverDelay = $state(50);
 
-  // Telemetry state
-  const telemetry = createTelemetryState()
+// Telemetry state
+const telemetry = createTelemetryState();
 
-  // Current batcher instance
-  let batcher = $state<Batcher<string, string> | null>(null)
-  let keyCounter = $state(0)
+// Current batcher instance
+let batcher = $state<Batcher<string, { id: string; value: string }> | null>(
+  null,
+);
+let keyCounter = $state(0);
 
-  // Simulated database
-  const database = new Map<string, string>()
-  for (let i = 1; i <= 100; i++) {
-    database.set(`user-${i}`, `User #${i}`)
+// Simulated database
+const database = new Map<string, string>();
+for (let i = 1; i <= 100; i++) {
+  database.set(`user-${i}`, `User #${i}`);
+}
+
+// Create/recreate batcher when config changes
+function createNewBatcher() {
+  // Clear previous state
+  telemetry.clear();
+
+  // Determine scheduler
+  let schedule: Scheduler | undefined;
+  let wait: number | undefined;
+
+  if (schedulerType === 'window') {
+    wait = windowDelay;
+  } else if (schedulerType === 'animationFrame') {
+    schedule = onAnimationFrame;
+  } else if (schedulerType === 'idle') {
+    schedule = onIdle({ timeout: 100 });
   }
+  // For 'microtask', leave both undefined (default)
+  // For 'manual', we'll handle flush manually
 
-  // Create/recreate batcher when config changes
-  function createNewBatcher() {
-    // Clear previous state
-    telemetry.clear()
+  const newBatcher = batch<string, { id: string; value: string }>(
+    async (keys, _signal) => {
+      // Simulate async work
+      await new Promise((r) => setTimeout(r, resolverDelay));
+      return keys.map((key) => ({
+        id: key,
+        value: database.get(key) ?? `Not found: ${key}`,
+      }));
+    },
+    'id',
+    {
+      wait,
+      schedule,
+      max: maxBatchSize > 0 ? maxBatchSize : undefined,
+      name: 'playground',
+      trace: telemetry.createTraceHandler(),
+    },
+  );
 
-    // Determine scheduler
-    let schedule: Scheduler | undefined
-    let wait: number | undefined
+  batcher = newBatcher;
+}
 
-    if (schedulerType === 'window') {
-      wait = windowDelay
-    } else if (schedulerType === 'animationFrame') {
-      schedule = onAnimationFrame
-    } else if (schedulerType === 'idle') {
-      schedule = onIdle({ timeout: 100 })
-    }
-    // For 'microtask', leave both undefined (default)
-    // For 'manual', we'll handle flush manually
+// Initialize batcher on mount
+$effect(() => {
+  createNewBatcher();
+});
 
-    const newBatcher = batch<string, string>(
-      async (keys, _signal) => {
-        // Simulate async work
-        await new Promise(r => setTimeout(r, resolverDelay))
-        return keys.map(key => ({ id: key, value: database.get(key) ?? `Not found: ${key}` }))
-      },
-      'id',
-      {
-        wait,
-        schedule,
-        max: maxBatchSize > 0 ? maxBatchSize : undefined,
-        name: 'playground',
-        trace: telemetry.createTraceHandler(),
-      }
-    )
+// Handlers for controls
+function handleLoadKey() {
+  if (!batcher) return;
+  const key = `user-${(keyCounter++ % 10) + 1}`;
+  batcher.get(key);
+}
 
-    batcher = newBatcher
+function handleLoadRandom(count: number) {
+  if (!batcher) return;
+  for (let i = 0; i < count; i++) {
+    const id = Math.floor(Math.random() * 100) + 1;
+    batcher.get(`user-${id}`);
   }
+}
 
-  // Initialize batcher on mount
-  $effect(() => {
-    createNewBatcher()
-  })
+function handleLoadDuplicate() {
+  if (!batcher) return;
+  const key = 'user-1';
+  batcher.get(key);
+  batcher.get(key);
+  batcher.get(key);
+}
 
-  // Handlers for controls
-  function handleLoadKey() {
-    if (!batcher) return
-    const key = `user-${(keyCounter++ % 10) + 1}`
-    batcher.get(key)
+function handleBurst(count: number) {
+  if (!batcher) return;
+  for (let i = 0; i < count; i++) {
+    batcher.get(`user-${(i % 20) + 1}`);
   }
+}
 
-  function handleLoadRandom(count: number) {
-    if (!batcher) return
-    for (let i = 0; i < count; i++) {
-      const id = Math.floor(Math.random() * 100) + 1
-      batcher.get(`user-${id}`)
-    }
-  }
+function handleFlush() {
+  if (!batcher) return;
+  batcher.flush();
+}
 
-  function handleLoadDuplicate() {
-    if (!batcher) return
-    const key = 'user-1'
-    batcher.get(key)
-    batcher.get(key)
-    batcher.get(key)
-  }
+function handleClearTimeline() {
+  telemetry.clear();
+}
 
-  function handleBurst(count: number) {
-    if (!batcher) return
-    for (let i = 0; i < count; i++) {
-      batcher.get(`user-${(i % 20) + 1}`)
-    }
-  }
-
-  function handleFlush() {
-    if (!batcher) return
-    batcher.flush()
-  }
-
-  function handleClearTimeline() {
-    telemetry.clear()
-  }
-
-  function handleConfigChange() {
-    createNewBatcher()
-  }
+function handleConfigChange() {
+  createNewBatcher();
+}
 </script>
 
 <div class="flex flex-col gap-6">

@@ -13,5 +13,4 @@
  * )
  * ```
  */
-export const indexed: unique symbol = Symbol('indexed')
-
+export const indexed: unique symbol = Symbol('indexed');

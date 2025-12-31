@@ -1,183 +1,202 @@
 <script lang="ts">
-  import type { TimelineEvent, BatchGroup } from '../lib/useBatcherTelemetry.svelte'
-  import type { TraceEvent } from 'batchkit'
-  import { Tooltip } from 'bits-ui'
+import type { TraceEvent } from 'batchkit';
+import { Tooltip } from 'bits-ui';
+import type {
+  BatchGroup,
+  TimelineEvent,
+} from '../lib/useBatcherTelemetry.svelte';
 
-  interface Props {
-    events: TimelineEvent[]
-    batches: Map<string, BatchGroup>
-  }
+interface Props {
+  events: TimelineEvent[];
+  batches: Map<string, BatchGroup>;
+}
 
-  let { events, batches }: Props = $props()
+const { events, batches }: Props = $props();
 
-  // Selected row for highlighting
-  let selectedBatchId = $state<string | null>(null)
-  let hoveredBatchId = $state<string | null>(null)
+// Selected row for highlighting
+const selectedBatchId = $state<string | null>(null);
+const hoveredBatchId = $state<string | null>(null);
 
-  // Build batch rows with their load events
-  interface BatchRow {
-    batchId: string
-    loads: Array<{ id: string; key: unknown; time: number; deduped: boolean }>
-    scheduleTime: number
-    dispatchTime: number
-    resolveTime: number | null
-    duration: number | null
-    status: 'pending' | 'dispatching' | 'resolved' | 'error' | 'aborted'
-    keyCount: number
-    keys: unknown[]
-  }
+// Build batch rows with their load events
+interface BatchRow {
+  batchId: string;
+  loads: Array<{ id: string; key: unknown; time: number; deduped: boolean }>;
+  scheduleTime: number;
+  dispatchTime: number;
+  resolveTime: number | null;
+  duration: number | null;
+  status: 'pending' | 'dispatching' | 'resolved' | 'error' | 'aborted';
+  keyCount: number;
+  keys: unknown[];
+}
 
-  // Time window for the visualization
-  const timeWindow = $derived.by(() => {
-    if (events.length === 0) return { start: 0, end: 1000 }
-    
-    const times = events.map(e => e.relativeTime)
-    const minTime = Math.min(...times)
-    const maxTime = Math.max(...times)
-    const padding = Math.max(50, (maxTime - minTime) * 0.05)
-    
-    return { 
-      start: Math.max(0, minTime - 10), 
-      end: maxTime + padding 
-    }
-  })
+// Time window for the visualization
+const timeWindow = $derived.by(() => {
+  if (events.length === 0) return { start: 0, end: 1000 };
 
-  // Build rows from events
-  const batchRows = $derived.by(() => {
-    const rows: BatchRow[] = []
-    let currentLoads: Array<{ id: string; key: unknown; time: number; deduped: boolean }> = []
-    let currentScheduleTime = 0
-    
-    for (const event of events) {
-      const data = event.data as TraceEvent
-      
-      if (data.type === 'get') {
-        currentLoads.push({
-          id: event.id,
-          key: data.key,
-          time: event.relativeTime,
-          deduped: false,
-        })
-      } else if (data.type === 'dedup') {
-        currentLoads.push({
-          id: event.id,
-          key: data.key,
-          time: event.relativeTime,
-          deduped: true,
-        })
-      } else if (data.type === 'schedule') {
-        currentScheduleTime = event.relativeTime
-      } else if (data.type === 'dispatch') {
-        const batch = batches.get(data.batchId)
-        
-        rows.push({
-          batchId: data.batchId,
-          loads: [...currentLoads],
-          scheduleTime: currentScheduleTime || currentLoads[0]?.time || event.relativeTime,
-          dispatchTime: event.relativeTime,
-          resolveTime: batch?.endTime ?? null,
-          duration: batch?.duration ?? null,
-          status: batch?.status === 'error' ? 'error' : 
-                  batch?.status === 'aborted' ? 'aborted' :
-                  batch?.status === 'resolved' ? 'resolved' : 'dispatching',
-          keyCount: data.keys.length,
-          keys: data.keys,
-        })
-        
-        currentLoads = []
-        currentScheduleTime = 0
-      }
-    }
-    
-    // Pending batch (not yet dispatched)
-    if (currentLoads.length > 0) {
+  const times = events.map((e) => e.relativeTime);
+  const minTime = Math.min(...times);
+  const maxTime = Math.max(...times);
+  const padding = Math.max(50, (maxTime - minTime) * 0.05);
+
+  return {
+    start: Math.max(0, minTime - 10),
+    end: maxTime + padding,
+  };
+});
+
+// Build rows from events
+const batchRows = $derived.by(() => {
+  const rows: BatchRow[] = [];
+  let currentLoads: Array<{
+    id: string;
+    key: unknown;
+    time: number;
+    deduped: boolean;
+  }> = [];
+  let currentScheduleTime = 0;
+
+  for (const event of events) {
+    const data = event.data as TraceEvent;
+
+    if (data.type === 'get') {
+      currentLoads.push({
+        id: event.id,
+        key: data.key,
+        time: event.relativeTime,
+        deduped: false,
+      });
+    } else if (data.type === 'dedup') {
+      currentLoads.push({
+        id: event.id,
+        key: data.key,
+        time: event.relativeTime,
+        deduped: true,
+      });
+    } else if (data.type === 'schedule') {
+      currentScheduleTime = event.relativeTime;
+    } else if (data.type === 'dispatch') {
+      const batch = batches.get(data.batchId);
+
       rows.push({
-        batchId: 'pending',
-        loads: currentLoads,
-        scheduleTime: currentLoads[0]?.time ?? 0,
-        dispatchTime: currentLoads[currentLoads.length - 1]?.time ?? 0,
-        resolveTime: null,
-        duration: null,
-        status: 'pending',
-        keyCount: currentLoads.filter(l => !l.deduped).length,
-        keys: currentLoads.filter(l => !l.deduped).map(l => l.key),
-      })
-    }
-    
-    return rows
-  })
+        batchId: data.batchId,
+        loads: [...currentLoads],
+        scheduleTime:
+          currentScheduleTime || currentLoads[0]?.time || event.relativeTime,
+        dispatchTime: event.relativeTime,
+        resolveTime: batch?.endTime ?? null,
+        duration: batch?.duration ?? null,
+        status:
+          batch?.status === 'error'
+            ? 'error'
+            : batch?.status === 'aborted'
+              ? 'aborted'
+              : batch?.status === 'resolved'
+                ? 'resolved'
+                : 'dispatching',
+        keyCount: data.keys.length,
+        keys: data.keys,
+      });
 
-  function timeToPercent(time: number): number {
-    const { start, end } = timeWindow
-    return ((time - start) / (end - start)) * 100
-  }
-
-  function formatTime(ms: number): string {
-    if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`
-    return `${ms.toFixed(0)}ms`
-  }
-
-  function formatDuration(ms: number): string {
-    if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`
-    if (ms >= 100) return `${ms.toFixed(0)}ms`
-    return `${ms.toFixed(1)}ms`
-  }
-
-  function formatKey(key: unknown): string {
-    if (typeof key === 'string') return key
-    return JSON.stringify(key)
-  }
-
-  function getStatusLabel(status: BatchRow['status']): string {
-    switch (status) {
-      case 'pending': return 'Queued'
-      case 'dispatching': return 'Fetching'
-      case 'resolved': return 'Complete'
-      case 'error': return 'Error'
-      case 'aborted': return 'Aborted'
+      currentLoads = [];
+      currentScheduleTime = 0;
     }
   }
 
-  // Calculate waterfall bar dimensions for a row
-  function getWaterfallDimensions(row: BatchRow) {
-    const startPct = timeToPercent(row.scheduleTime)
-    const endPct = row.resolveTime 
-      ? timeToPercent(row.resolveTime) 
-      : timeToPercent(row.dispatchTime + (row.duration || 50))
-    const dispatchPct = timeToPercent(row.dispatchTime)
-    const width = Math.max(endPct - startPct, 0.5)
-    const queueWidth = Math.max(dispatchPct - startPct, 0)
-    
-    return { startPct, width, queueWidth }
+  // Pending batch (not yet dispatched)
+  if (currentLoads.length > 0) {
+    rows.push({
+      batchId: 'pending',
+      loads: currentLoads,
+      scheduleTime: currentLoads[0]?.time ?? 0,
+      dispatchTime: currentLoads[currentLoads.length - 1]?.time ?? 0,
+      resolveTime: null,
+      duration: null,
+      status: 'pending',
+      keyCount: currentLoads.filter((l) => !l.deduped).length,
+      keys: currentLoads.filter((l) => !l.deduped).map((l) => l.key),
+    });
   }
 
-  // Time ruler markers
-  const timeMarkers = $derived.by(() => {
-    const { start, end } = timeWindow
-    const range = end - start
-    if (range <= 0) return []
-    
-    // Calculate nice step sizes
-    const targetMarkers = 6
-    const rawStep = range / targetMarkers
-    const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)))
-    const normalized = rawStep / magnitude
-    
-    let step: number
-    if (normalized <= 1) step = magnitude
-    else if (normalized <= 2) step = 2 * magnitude
-    else if (normalized <= 5) step = 5 * magnitude
-    else step = 10 * magnitude
-    
-    const markers: number[] = []
-    let t = Math.ceil(start / step) * step
-    while (t <= end && markers.length < 10) {
-      markers.push(t)
-      t += step
-    }
-    
-    return markers
-  })
+  return rows;
+});
+
+function timeToPercent(time: number): number {
+  const { start, end } = timeWindow;
+  return ((time - start) / (end - start)) * 100;
+}
+
+function formatTime(ms: number): string {
+  if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
+  return `${ms.toFixed(0)}ms`;
+}
+
+function formatDuration(ms: number): string {
+  if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
+  if (ms >= 100) return `${ms.toFixed(0)}ms`;
+  return `${ms.toFixed(1)}ms`;
+}
+
+function formatKey(key: unknown): string {
+  if (typeof key === 'string') return key;
+  return JSON.stringify(key);
+}
+
+function getStatusLabel(status: BatchRow['status']): string {
+  switch (status) {
+    case 'pending':
+      return 'Queued';
+    case 'dispatching':
+      return 'Fetching';
+    case 'resolved':
+      return 'Complete';
+    case 'error':
+      return 'Error';
+    case 'aborted':
+      return 'Aborted';
+  }
+}
+
+// Calculate waterfall bar dimensions for a row
+function getWaterfallDimensions(row: BatchRow) {
+  const startPct = timeToPercent(row.scheduleTime);
+  const endPct = row.resolveTime
+    ? timeToPercent(row.resolveTime)
+    : timeToPercent(row.dispatchTime + (row.duration || 50));
+  const dispatchPct = timeToPercent(row.dispatchTime);
+  const width = Math.max(endPct - startPct, 0.5);
+  const queueWidth = Math.max(dispatchPct - startPct, 0);
+
+  return { startPct, width, queueWidth };
+}
+
+// Time ruler markers
+const timeMarkers = $derived.by(() => {
+  const { start, end } = timeWindow;
+  const range = end - start;
+  if (range <= 0) return [];
+
+  // Calculate nice step sizes
+  const targetMarkers = 6;
+  const rawStep = range / targetMarkers;
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const normalized = rawStep / magnitude;
+
+  let step: number;
+  if (normalized <= 1) step = magnitude;
+  else if (normalized <= 2) step = 2 * magnitude;
+  else if (normalized <= 5) step = 5 * magnitude;
+  else step = 10 * magnitude;
+
+  const markers: number[] = [];
+  let t = Math.ceil(start / step) * step;
+  while (t <= end && markers.length < 10) {
+    markers.push(t);
+    t += step;
+  }
+
+  return markers;
+});
 </script>
 
 <Tooltip.Provider>

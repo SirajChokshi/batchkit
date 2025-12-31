@@ -1,23 +1,23 @@
 <script lang="ts">
-  interface Props {
-    schedulerType: 'microtask' | 'window' | 'animationFrame' | 'idle' | 'manual'
-    onLoadKey: () => void
-    onLoadRandom: (count: number) => void
-    onLoadDuplicate: () => void
-    onBurst: (count: number) => void
-    onFlush: () => void
-    onClear: () => void
-  }
+interface Props {
+  schedulerType: 'microtask' | 'window' | 'animationFrame' | 'idle' | 'manual';
+  onLoadKey: () => void;
+  onLoadRandom: (count: number) => void;
+  onLoadDuplicate: () => void;
+  onBurst: (count: number) => void;
+  onFlush: () => void;
+  onClear: () => void;
+}
 
-  let { 
-    schedulerType,
-    onLoadKey, 
-    onLoadRandom, 
-    onLoadDuplicate,
-    onBurst,
-    onFlush,
-    onClear
-  }: Props = $props()
+const {
+  schedulerType,
+  onLoadKey,
+  onLoadRandom,
+  onLoadDuplicate,
+  onBurst,
+  onFlush,
+  onClear,
+}: Props = $props();
 </script>
 
 <div class="bg-stone-900 p-4">

@@ -1,61 +1,67 @@
 <script lang="ts">
-  import type { TimelineEvent } from '../lib/useBatcherTelemetry.svelte'
-  import type { TraceEvent } from 'batchkit'
+import type { TraceEvent } from 'batchkit';
+import type { TimelineEvent } from '../lib/useBatcherTelemetry.svelte';
 
-  interface Props {
-    events: TimelineEvent[]
+interface Props {
+  events: TimelineEvent[];
+}
+
+const { events }: Props = $props();
+
+// Show most recent events first, limited to last 100
+const displayEvents = $derived([...events].reverse().slice(0, 100));
+
+function getEventIcon(type: string): string {
+  switch (type) {
+    case 'get':
+      return '→';
+    case 'dedup':
+      return '⊕';
+    case 'schedule':
+      return '◎';
+    case 'dispatch':
+      return '▶';
+    case 'resolve':
+      return '✓';
+    case 'error':
+      return '✗';
+    case 'abort':
+      return '⊘';
+    default:
+      return '•';
   }
+}
 
-  let { events }: Props = $props()
+function getRowStyle(type: string): string {
+  if (type === 'get') return 'text-stone-300';
+  if (type === 'dedup') return 'text-stone-500';
+  if (type === 'dispatch') return 'text-stone-400';
+  if (type === 'resolve') return 'text-stone-400';
+  if (type === 'schedule') return 'text-stone-500';
+  if (type === 'error') return 'text-stone-300';
+  return 'text-stone-600';
+}
 
-  // Show most recent events first, limited to last 100
-  const displayEvents = $derived(
-    [...events].reverse().slice(0, 100)
-  )
-
-  function getEventIcon(type: string): string {
-    switch (type) {
-      case 'get': return '→'
-      case 'dedup': return '⊕'
-      case 'schedule': return '◎'
-      case 'dispatch': return '▶'
-      case 'resolve': return '✓'
-      case 'error': return '✗'
-      case 'abort': return '⊘'
-      default: return '•'
-    }
+function formatEventData(event: TimelineEvent): string {
+  const data = event.data as TraceEvent;
+  switch (data.type) {
+    case 'get':
+    case 'dedup':
+      return `"${data.key}"`;
+    case 'schedule':
+      return `#${data.batchId.split('-').pop()} size=${data.size}`;
+    case 'dispatch':
+      return `#${data.batchId.split('-').pop()} keys=${data.keys.length}`;
+    case 'resolve':
+      return `#${data.batchId.split('-').pop()} ${data.duration.toFixed(0)}ms`;
+    case 'error':
+      return `#${data.batchId.split('-').pop()} ${data.error.message}`;
+    case 'abort':
+      return `#${data.batchId.split('-').pop()}`;
+    default:
+      return '';
   }
-
-  function getRowStyle(type: string): string {
-    if (type === 'get') return 'text-stone-300'
-    if (type === 'dedup') return 'text-stone-500'
-    if (type === 'dispatch') return 'text-stone-400'
-    if (type === 'resolve') return 'text-stone-400'
-    if (type === 'schedule') return 'text-stone-500'
-    if (type === 'error') return 'text-stone-300'
-    return 'text-stone-600'
-  }
-
-  function formatEventData(event: TimelineEvent): string {
-    const data = event.data as TraceEvent
-    switch (data.type) {
-      case 'get':
-      case 'dedup':
-        return `"${data.key}"`
-      case 'schedule':
-        return `#${data.batchId.split('-').pop()} size=${data.size}`
-      case 'dispatch':
-        return `#${data.batchId.split('-').pop()} keys=${data.keys.length}`
-      case 'resolve':
-        return `#${data.batchId.split('-').pop()} ${data.duration.toFixed(0)}ms`
-      case 'error':
-        return `#${data.batchId.split('-').pop()} ${data.error.message}`
-      case 'abort':
-        return `#${data.batchId.split('-').pop()}`
-      default:
-        return ''
-    }
-  }
+}
 </script>
 
 <div class="bg-stone-900 flex flex-col flex-1 min-h-[180px]">

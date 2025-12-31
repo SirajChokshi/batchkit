@@ -8,9 +8,12 @@
   "scripts": {
     "test": "bun test",
     "build": "bun run --filter '*' build",
-    "dev": "bun run --filter playground dev"
+    "dev": "bun run --filter playground dev",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write ."
   },
   "devDependencies": {
+    "@biomejs/biome": "2.3.10",
     "typescript": "5.3.3"
   }
 }

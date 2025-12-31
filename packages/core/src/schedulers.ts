@@ -1,31 +1,31 @@
-import type { Scheduler } from './types'
+import type { Scheduler } from './types';
 
 /**
  * Microtask scheduler - batches within a single event loop tick.
  * This is the default scheduler.
  */
 export const microtask: Scheduler = (dispatch) => {
-  let cancelled = false
+  let cancelled = false;
 
   queueMicrotask(() => {
     if (!cancelled) {
-      dispatch()
+      dispatch();
     }
-  })
+  });
 
   return () => {
-    cancelled = true
-  }
-}
+    cancelled = true;
+  };
+};
 
 /**
  * Creates a scheduler that waits a specified number of milliseconds.
  */
 export function wait(ms: number): Scheduler {
   return (dispatch) => {
-    const id = setTimeout(dispatch, ms)
-    return () => clearTimeout(id)
-  }
+    const id = setTimeout(dispatch, ms);
+    return () => clearTimeout(id);
+  };
 }
 
 /**
@@ -38,9 +38,9 @@ export function wait(ms: number): Scheduler {
  * ```
  */
 export const onAnimationFrame: Scheduler = (dispatch) => {
-  const id = requestAnimationFrame(dispatch)
-  return () => cancelAnimationFrame(id)
-}
+  const id = requestAnimationFrame(dispatch);
+  return () => cancelAnimationFrame(id);
+};
 
 /**
  * Creates a scheduler that dispatches when the browser is idle.
@@ -57,16 +57,16 @@ export function onIdle(options?: { timeout?: number }): Scheduler {
     if (typeof requestIdleCallback !== 'undefined') {
       const id = requestIdleCallback(
         dispatch,
-        options?.timeout ? { timeout: options.timeout } : undefined
-      )
-      return () => cancelIdleCallback(id)
+        options?.timeout ? { timeout: options.timeout } : undefined,
+      );
+      return () => cancelIdleCallback(id);
     }
 
     // Fallback for environments without requestIdleCallback
-    const id = setTimeout(dispatch, options?.timeout ?? 1)
-    return () => clearTimeout(id)
-  }
+    const id = setTimeout(dispatch, options?.timeout ?? 1);
+    return () => clearTimeout(id);
+  };
 }
 
 // Also export as a direct scheduler for simple usage
-export const idle: Scheduler = onIdle()
+export const idle: Scheduler = onIdle();
