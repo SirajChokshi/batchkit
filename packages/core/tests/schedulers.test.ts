@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { batch, onAnimationFrame, onIdle } from '../src';
+import { batch, onIdle } from '../src';
 
 describe('schedulers', () => {
   describe('default microtask scheduler', () => {

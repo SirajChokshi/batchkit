@@ -13,7 +13,6 @@
     "@tailwindcss/vite": "4.1.18",
     "astro": "5.0.0",
     "batchkit": "workspace:*",
-    "bits-ui": "2.14.4",
     "svelte": "5.0.0",
     "tailwindcss": "4.1.18"
   },

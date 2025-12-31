@@ -8,12 +8,12 @@ import EventLog from './EventLog.svelte';
 import Timeline from './Timeline.svelte';
 
 // Configuration state
-const schedulerType = $state<
+let schedulerType = $state<
   'microtask' | 'window' | 'animationFrame' | 'idle' | 'manual'
 >('microtask');
-const windowDelay = $state(10);
-const maxBatchSize = $state(0); // 0 = unlimited
-const resolverDelay = $state(50);
+let windowDelay = $state(10);
+let maxBatchSize = $state(0); // 0 = unlimited
+let resolverDelay = $state(50);
 
 // Telemetry state
 const telemetry = createTelemetryState();

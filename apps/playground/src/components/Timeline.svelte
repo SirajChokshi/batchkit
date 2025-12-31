@@ -1,6 +1,5 @@
 <script lang="ts">
 import type { TraceEvent } from 'batchkit';
-import { Tooltip } from 'bits-ui';
 import type {
   BatchGroup,
   TimelineEvent,
@@ -14,8 +13,8 @@ interface Props {
 const { events, batches }: Props = $props();
 
 // Selected row for highlighting
-const selectedBatchId = $state<string | null>(null);
-const hoveredBatchId = $state<string | null>(null);
+let selectedBatchId = $state<string | null>(null);
+let hoveredBatchId = $state<string | null>(null);
 
 // Build batch rows with their load events
 interface BatchRow {
@@ -157,6 +156,12 @@ function getStatusLabel(status: BatchRow['status']): string {
   }
 }
 
+function getKeysTooltip(row: BatchRow): string {
+  const keysList = row.keys.slice(0, 10).map(k => formatKey(k)).join(', ');
+  const suffix = row.keys.length > 10 ? ` +${row.keys.length - 10} more` : '';
+  return `Keys (${row.keyCount}): ${keysList}${suffix}`;
+}
+
 // Calculate waterfall bar dimensions for a row
 function getWaterfallDimensions(row: BatchRow) {
   const startPct = timeToPercent(row.scheduleTime);
@@ -199,7 +204,6 @@ const timeMarkers = $derived.by(() => {
 });
 </script>
 
-<Tooltip.Provider>
 <div class="timeline-container flex flex-col min-h-[280px] bg-stone-900">
   <!-- Header -->
   <div class="flex items-center justify-between px-3 py-2 border-b border-stone-700 bg-stone-900 shrink-0">
@@ -236,7 +240,7 @@ const timeMarkers = $derived.by(() => {
 
     <!-- Table body with custom scrollbar -->
     <div class="timeline-scroll flex-1 overflow-y-auto overflow-x-hidden">
-      {#each batchRows as row, index (row.batchId)}
+      {#each batchRows as row (row.batchId)}
         {@const isSelected = selectedBatchId === row.batchId}
         {@const isHovered = hoveredBatchId === row.batchId}
         {@const dims = getWaterfallDimensions(row)}
@@ -251,33 +255,15 @@ const timeMarkers = $derived.by(() => {
           onkeydown={(e) => e.key === 'Enter' && (selectedBatchId = selectedBatchId === row.batchId ? null : row.batchId)}
         >
           <!-- Batch ID -->
-          <div class="px-3 py-2 border-r border-stone-800 flex items-center">
-            <Tooltip.Root openDelay={200}>
-              <Tooltip.Trigger class="text-left">
-                <span class="text-[11px] font-mono text-stone-300">
-                  {#if row.batchId === 'pending'}
-                    <span class="text-stone-500">pending</span>
-                  {:else}
-                    #{row.batchId.split('-').pop()}
-                  {/if}
-                </span>
-                <span class="text-[10px] text-stone-600 ml-1.5">{row.keyCount}k</span>
-              </Tooltip.Trigger>
-              <Tooltip.Portal>
-                <Tooltip.Content 
-                  class="z-50 bg-stone-800 border border-stone-700 px-3 py-2 font-mono text-[11px] max-w-[300px]"
-                  sideOffset={4}
-                >
-                  <div class="text-stone-400 mb-1">Keys ({row.keyCount})</div>
-                  <div class="text-stone-300 break-all">
-                    {row.keys.slice(0, 10).map(k => formatKey(k)).join(', ')}
-                    {#if row.keys.length > 10}
-                      <span class="text-stone-500"> +{row.keys.length - 10} more</span>
-                    {/if}
-                  </div>
-                </Tooltip.Content>
-              </Tooltip.Portal>
-            </Tooltip.Root>
+          <div class="px-3 py-2 border-r border-stone-800 flex items-center" title={getKeysTooltip(row)}>
+            <span class="text-[11px] font-mono text-stone-300">
+              {#if row.batchId === 'pending'}
+                <span class="text-stone-500">pending</span>
+              {:else}
+                #{row.batchId.split('-').pop()}
+              {/if}
+            </span>
+            <span class="text-[10px] text-stone-600 ml-1.5">{row.keyCount}k</span>
           </div>
 
           <!-- Status -->
@@ -371,7 +357,6 @@ const timeMarkers = $derived.by(() => {
     </div>
   {/if}
 </div>
-</Tooltip.Provider>
 
 <style>
   /* Custom scrollbar */

@@ -7,7 +7,7 @@ interface Props {
   onConfigChange: () => void;
 }
 
-const {
+let {
   schedulerType = $bindable(),
   windowDelay = $bindable(),
   maxBatchSize = $bindable(),
