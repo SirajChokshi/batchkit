@@ -1,0 +1,68 @@
+---
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    /* Dark theme colors */
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-tertiary: #1a1a24;
+    --bg-card: #16161e;
+    
+    --text-primary: #e4e4e7;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    
+    --accent-primary: #22d3ee;
+    --accent-secondary: #a78bfa;
+    --accent-success: #4ade80;
+    --accent-warning: #fbbf24;
+    --accent-error: #f87171;
+    
+    --border-color: #27272a;
+    --border-radius: 8px;
+    
+    /* Fonts */
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+  }
+
+  body {
+    min-height: 100vh;
+  }
+
+  code, pre {
+    font-family: var(--font-mono);
+  }
+</style>
+

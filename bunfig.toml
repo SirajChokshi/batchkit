@@ -1,0 +1,8 @@
+[install]
+# Use exact versions for reproducibility
+exact = true
+
+[test]
+# Enable coverage reporting
+coverage = true
+

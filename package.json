@@ -1,0 +1,16 @@
+{
+  "name": "batchkit-root",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "bun test",
+    "build": "bun run --filter '*' build",
+    "dev": "bun run --filter playground dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

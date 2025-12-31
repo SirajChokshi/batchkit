@@ -1,0 +1,40 @@
+{
+  "name": "batchkit",
+  "version": "0.1.0",
+  "description": "A modern TypeScript library for batching async operations",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "bun": "./src/index.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir ./dist --target node",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "batch",
+    "batching",
+    "dataloader",
+    "async",
+    "performance",
+    "n+1",
+    "database"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "bun-types": "latest",
+    "typescript": "^5.3.3"
+  }
+}
