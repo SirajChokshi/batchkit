@@ -1,191 +1,144 @@
-import type { BatcherTelemetry } from './telemetry'
-
 /**
- * Information about a completed batch execution
+ * The batch function that fetches multiple items at once.
+ * Receives an array of keys and an AbortSignal for cancellation.
  */
-export interface BatchInfo<K, V> {
-  /** Name of the batcher (if provided) */
-  name?: string
-  /** Keys that were batched together */
-  keys: K[]
-  /** Number of keys in the batch */
-  size: number
-  /** Time taken to resolve the batch in milliseconds */
-  duration: number
-  /** Results from the resolver */
-  results: V[]
-  /** Timestamp when the batch started */
-  startedAt: number
-  /** Timestamp when the batch completed */
-  completedAt: number
-}
+export type BatchFn<K, V> = (
+  keys: K[],
+  signal: AbortSignal
+) => Promise<V[] | Record<string, V>>
 
 /**
- * Information about a batch error
+ * How to match results back to their requested keys.
+ * - String: match by field name (e.g., 'id')
+ * - Symbol: use indexed matching for Record responses
+ * - Function: custom matching logic
  */
-export interface BatchErrorInfo<K> {
-  /** Name of the batcher (if provided) */
-  name?: string
-  /** Keys that were in the failed batch */
-  keys: K[]
-  /** The error that occurred */
-  error: Error
-  /** Timestamp when the error occurred */
-  timestamp: number
-}
+export type Match<K, V> =
+  | keyof V
+  | symbol
+  | MatchFn<K, V>
 
 /**
- * A scheduler controls when batched keys are dispatched to the resolver.
- * It receives a dispatch function and should call it when ready.
- * Returns a cleanup function.
+ * Custom match function signature.
+ */
+export type MatchFn<K, V> = (results: V[], key: K) => V | undefined
+
+/**
+ * Match function for Record/indexed responses.
+ */
+export type IndexedMatchFn<K, V> = (results: Record<string, V>, key: K) => V | undefined
+
+/**
+ * Scheduler controls when batched keys are dispatched.
+ * Receives a dispatch function and returns a cleanup function.
  */
 export type Scheduler = (dispatch: () => void) => () => void
 
 /**
- * Built-in scheduler types
+ * Handler for trace events.
  */
-export type SchedulerType = 'microtask' | 'manual' | Scheduler
+export type TraceHandler<K = unknown> = (event: TraceEvent<K>) => void
 
 /**
- * Options for creating a batcher
+ * Trace event data without timestamp (used internally for emit calls).
  */
-export interface BatcherOptions<K, V> {
+export type TraceEventData<K = unknown> =
+  | { type: 'get'; key: K }
+  | { type: 'dedup'; key: K }
+  | { type: 'schedule'; batchId: string; size: number }
+  | { type: 'dispatch'; batchId: string; keys: K[] }
+  | { type: 'resolve'; batchId: string; duration: number }
+  | { type: 'error'; batchId: string; error: Error }
+  | { type: 'abort'; batchId: string }
+
+/**
+ * Trace events emitted during batch operations.
+ * Each event includes a timestamp added by the tracer.
+ */
+export type TraceEvent<K = unknown> = TraceEventData<K> & { timestamp: number }
+
+/**
+ * Options for creating a batcher.
+ */
+export interface BatchOptions<K = unknown> {
   /**
-   * The batch resolver function.
-   * Receives an array of keys and must return an array of results
-   * in the same order as the input keys.
+   * Milliseconds to wait before dispatching (default: 0 = microtask).
    */
-  resolver: (keys: K[]) => Promise<V[]>
+  wait?: number
 
   /**
-   * Optional name for the batcher (useful for debugging/observability)
+   * Custom scheduler (overrides wait).
+   */
+  schedule?: Scheduler
+
+  /**
+   * Maximum batch size (default: unlimited).
+   */
+  max?: number
+
+  /**
+   * Custom key function for deduplication (default: identity).
+   */
+  key?: (k: K) => unknown
+
+  /**
+   * Name for tracing/debugging.
    */
   name?: string
 
   /**
-   * Scheduling strategy for batching.
-   * - 'microtask': Batches within a single event loop tick (default)
-   * - 'manual': Only dispatches when .dispatch() is called
-   * - Custom scheduler function
+   * Trace event handler.
    */
-  scheduler?: SchedulerType
-
-  /**
-   * Maximum number of keys to include in a single batch.
-   * If more keys are queued, they will be split into multiple batches.
-   */
-  maxBatchSize?: number
-
-  /**
-   * Custom key function for deduplication.
-   * Defaults to using the key directly.
-   */
-  keyFn?: (key: K) => unknown
-
-  /**
-   * Called after each successful batch execution
-   */
-  onBatch?: (info: BatchInfo<K, V>) => void
-
-  /**
-   * Called when a batch fails with an error
-   */
-  onError?: (info: BatchErrorInfo<K>) => void
-
-  /**
-   * Enable telemetry for debugging and visualization.
-   * When enabled, the batcher will emit events for all operations.
-   * Access via batcher._telemetry
-   * @internal
-   */
-  _enableTelemetry?: boolean
+  trace?: TraceHandler<K>
 }
 
 /**
- * A pending request waiting to be batched
+ * Options for the get() method.
+ */
+export interface GetOptions {
+  /**
+   * AbortSignal for per-request cancellation.
+   */
+  signal?: AbortSignal
+}
+
+/**
+ * The batcher instance returned by batch().
+ */
+export interface Batcher<K, V> {
+  /**
+   * Get a single item by key.
+   */
+  get(key: K, options?: GetOptions): Promise<V>
+
+  /**
+   * Get multiple items by keys.
+   */
+  get(keys: K[], options?: GetOptions): Promise<V[]>
+
+  /**
+   * Execute pending batch immediately.
+   */
+  flush(): Promise<void>
+
+  /**
+   * Abort in-flight batch.
+   */
+  abort(): void
+
+  /**
+   * Name of this batcher (if provided).
+   */
+  readonly name?: string
+}
+
+/**
+ * Internal pending request structure.
  */
 export interface PendingRequest<K, V> {
   key: K
   resolve: (value: V) => void
   reject: (error: Error) => void
+  signal?: AbortSignal
+  aborted: boolean
 }
-
-/**
- * The batcher instance returned by createBatcher
- */
-export interface Batcher<K, V> {
-  /**
-   * Load a single value by key.
-   * The call will be batched with other calls in the same tick.
-   */
-  load: (key: K) => Promise<V>
-
-  /**
-   * Load multiple values by keys.
-   * All keys will be included in the same batch.
-   */
-  loadMany: (keys: K[]) => Promise<V[]>
-
-  /**
-   * Pre-populate the batcher with a known value.
-   * Future loads for this key will return the primed value.
-   */
-  prime: (key: K, value: V) => void
-
-  /**
-   * Clear a specific key from the cache.
-   */
-  clear: (key: K) => void
-
-  /**
-   * Clear all cached values.
-   */
-  clearAll: () => void
-
-  /**
-   * Manually dispatch any pending requests.
-   * Useful with the 'manual' scheduler.
-   */
-  dispatch: () => Promise<void>
-
-  /**
-   * The name of this batcher (if provided)
-   */
-  readonly name?: string
-
-  /**
-   * Telemetry interface for debugging and visualization.
-   * Only active when _enableTelemetry is true.
-   * @internal
-   */
-  readonly _telemetry: BatcherTelemetry<K, V>
-}
-
-/**
- * Error class for batch-level errors
- */
-export class BatchError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'BatchError'
-  }
-}
-
-/**
- * Error returned for individual items that failed within a batch
- */
-export class ItemError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'ItemError'
-  }
-}
-
-/**
- * Options for the window scheduler
- */
-export interface WindowSchedulerOptions {
-  /** Time to wait before dispatching (in milliseconds) */
-  wait: number
-}
-

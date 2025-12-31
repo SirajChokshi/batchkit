@@ -1,261 +1,285 @@
 # batchkit
 
-A modern TypeScript library for batching async operations. Solve the N+1 query problem with a simple, flexible API.
+Automatic batching for async operations. Solve the N+1 problem with two lines of code.
 
 ## Installation
 
 ```bash
-bun add batchkit
-# or
 npm install batchkit
 # or
-pnpm add batchkit
+bun add batchkit
 ```
 
 ## Quick Start
 
 ```typescript
-import { createBatcher } from 'batchkit'
+import { batch } from 'batchkit'
 
-// Create a batcher for user lookups
-const userLoader = createBatcher({
-  resolver: async (ids: string[]) => {
-    // This function receives ALL keys batched together
-    const users = await db.users.findMany({ where: { id: { in: ids } } })
-    // Return results in the same order as input keys
-    return ids.map(id => users.find(u => u.id === id) ?? null)
-  }
-})
+const users = batch(
+  (ids) => db.users.findMany({ where: { id: { in: ids } } }),
+  'id'
+)
 
-// Use it anywhere - calls are automatically batched!
-const user = await userLoader.load('user-123')
-const users = await userLoader.loadMany(['user-1', 'user-2'])
+// These calls are automatically batched into ONE database query
+const [alice, bob] = await Promise.all([
+  users.get(1),
+  users.get(2),
+])
 ```
 
-## Features
-
-- **Automatic Batching**: Collects all calls within the same tick and batches them together
-- **Deduplication**: Same key requested multiple times? Only fetched once
-- **Flexible Scheduling**: Microtask (default), time window, or manual dispatch
-- **Max Batch Size**: Split large batches to respect API limits
-- **Caching**: Prime and clear values as needed
-- **Observability**: Hooks for metrics and debugging
-- **TypeScript First**: Full type safety and inference
+That's it. Two arguments:
+1. A function that fetches many items at once
+2. The field to match results by
 
 ## API
 
-### `createBatcher(options)`
+### `batch(fn, match, options?)`
 
-Creates a new batcher instance.
-
-```typescript
-const batcher = createBatcher({
-  // Required: batch resolver function
-  resolver: async (keys: K[]) => V[],
-  
-  // Optional: name for debugging
-  name: 'users',
-  
-  // Optional: scheduling strategy
-  scheduler: 'microtask' | 'manual' | windowScheduler({ wait: 10 }),
-  
-  // Optional: max keys per batch
-  maxBatchSize: 100,
-  
-  // Optional: custom key function for deduplication
-  keyFn: (key) => key.id,
-  
-  // Optional: observability hooks
-  onBatch: (info) => console.log(`Batched ${info.size} items`),
-  onError: (info) => console.error(info.error),
-})
-```
-
-### Batcher Methods
+Creates a batcher.
 
 ```typescript
-// Load a single value
-const user = await batcher.load('user-123')
-
-// Load multiple values
-const users = await batcher.loadMany(['user-1', 'user-2'])
-
-// Pre-populate the cache
-batcher.prime('user-123', cachedUser)
-
-// Clear cached values
-batcher.clear('user-123')  // Single key
-batcher.clearAll()         // All keys
-
-// Manual dispatch (when using 'manual' scheduler)
-await batcher.dispatch()
-```
-
-## Scheduling Strategies
-
-### Microtask (Default)
-
-Batches all calls within the same event loop tick. Best for most use cases.
-
-```typescript
-const batcher = createBatcher({
-  resolver: async (keys) => fetchItems(keys),
-  scheduler: 'microtask', // This is the default
-})
-```
-
-### Window Scheduler
-
-Batches calls within a time window. Useful when calls are spread over time.
-
-```typescript
-import { windowScheduler } from 'batchkit'
-
-const batcher = createBatcher({
-  resolver: async (keys) => fetchItems(keys),
-  scheduler: windowScheduler({ wait: 50 }), // 50ms window
-})
-```
-
-### Manual Scheduler
-
-Only dispatches when you call `.dispatch()`. Full control over timing.
-
-```typescript
-const batcher = createBatcher({
-  resolver: async (keys) => fetchItems(keys),
-  scheduler: 'manual',
-})
-
-// Queue up requests
-const promise1 = batcher.load('a')
-const promise2 = batcher.load('b')
-
-// Dispatch when ready
-await batcher.dispatch()
-```
-
-## Observability
-
-Track batch execution for debugging and metrics:
-
-```typescript
-const batcher = createBatcher({
-  name: 'users',
-  resolver: async (keys) => fetchUsers(keys),
-  
-  onBatch: (info) => {
-    console.log(`[${info.name}] Batched ${info.size} keys in ${info.duration}ms`)
-    // Send to your metrics system
-    metrics.histogram('batch_size', info.size)
-    metrics.timing('batch_duration', info.duration)
+const users = batch(
+  // The batch function - receives keys and an AbortSignal
+  async (ids: number[], signal: AbortSignal) => {
+    return api.getUsers(ids, { signal })
   },
-  
-  onError: (info) => {
-    console.error(`[${info.name}] Batch failed:`, info.error)
-    // Report to error tracking
-    Sentry.captureException(info.error)
-  },
-})
+  // How to match results - just the field name
+  'id',
+  // Optional configuration
+  {
+    wait: 10,       // ms to wait before dispatch (default: 0 = microtask)
+    max: 100,       // max batch size
+    name: 'users',  // for debugging
+  }
+)
 ```
 
-## Error Handling
+### `batcher.get(key)` / `batcher.get(keys)`
 
-### Batch-Level Errors
-
-If the resolver throws, all pending requests are rejected:
+Get one or many items:
 
 ```typescript
-const batcher = createBatcher({
-  resolver: async (keys) => {
-    throw new Error('Database connection failed')
-  },
-})
+// Single item
+const user = await users.get(1)
 
-// All these will reject with "Database connection failed"
-await Promise.allSettled([
-  batcher.load('a'),
-  batcher.load('b'),
+// Multiple items (batched together)
+const [a, b] = await Promise.all([users.get(1), users.get(2)])
+
+// Array syntax
+const team = await users.get([1, 2, 3, 4, 5])
+```
+
+### `batcher.get(key, { signal })`
+
+Cancel a request:
+
+```typescript
+const controller = new AbortController()
+const user = await users.get(1, { signal: controller.signal })
+
+// Later...
+controller.abort() // Rejects with AbortError
+```
+
+### `batcher.flush()`
+
+Execute pending batch immediately:
+
+```typescript
+users.get(1)
+users.get(2)
+await users.flush() // Don't wait for scheduler
+```
+
+### `batcher.abort()`
+
+Abort the in-flight batch:
+
+```typescript
+users.abort() // All pending requests reject with AbortError
+```
+
+## Matching Results
+
+### By Field Name (most common)
+
+```typescript
+batch(fn, 'id')
+// Matches results where result.id === requestedKey
+```
+
+### For Record/Object Responses
+
+```typescript
+import { batch, indexed } from 'batchkit'
+
+const users = batch(
+  async (ids) => {
+    // Returns { "1": {...}, "2": {...} }
+    return fetchUsersAsRecord(ids)
+  },
+  indexed
+)
+```
+
+### Custom Matching
+
+```typescript
+batch(
+  fn,
+  (results, key) => results.find(r => r.externalId === key)
+)
+```
+
+## Scheduling
+
+### Default: Microtask
+
+Batches all calls within the same event loop tick:
+
+```typescript
+const users = batch(fn, 'id')
+
+// All batched into ONE request
+users.get(1)
+users.get(2)
+users.get(3)
+```
+
+### Delayed
+
+Wait before dispatching:
+
+```typescript
+batch(fn, 'id', { wait: 10 }) // 10ms window
+```
+
+### Animation Frame
+
+Sync with rendering:
+
+```typescript
+import { batch, onAnimationFrame } from 'batchkit'
+
+batch(fn, 'id', { schedule: onAnimationFrame })
+```
+
+### Idle
+
+Background/low-priority work:
+
+```typescript
+import { batch, onIdle } from 'batchkit'
+
+batch(fn, 'id', { schedule: onIdle({ timeout: 100 }) })
+```
+
+## Deduplication
+
+Duplicate keys in the same batch are automatically deduplicated:
+
+```typescript
+// Only ONE request for id=1
+await Promise.all([
+  users.get(1),
+  users.get(1),
+  users.get(1),
 ])
 ```
 
-### Per-Item Errors
-
-Return `Error` instances for individual failures:
+For complex keys, provide a key function:
 
 ```typescript
-const batcher = createBatcher({
-  resolver: async (keys) => {
-    return keys.map(key => {
-      if (key === 'invalid') {
-        return new Error('Not found')
-      }
-      return fetchItem(key)
-    })
-  },
+batch(fn, match, {
+  key: (query) => query.id  // Dedupe by query.id
 })
-
-// Only 'invalid' key will reject
-const results = await Promise.allSettled([
-  batcher.load('valid'),    // Resolves
-  batcher.load('invalid'),  // Rejects with "Not found"
-])
 ```
 
-## Common Use Cases
+## Tracing
+
+Debug batch behavior:
+
+```typescript
+batch(fn, 'id', {
+  name: 'users',
+  trace: (event) => {
+    console.log(event.type, event)
+    // 'get', 'schedule', 'dispatch', 'resolve', 'error', 'abort'
+  }
+})
+```
+
+## Examples
 
 ### Database N+1 Problem
 
 ```typescript
-// Without batching: 50 posts = 50 queries 😱
-for (const post of posts) {
-  post.author = await db.users.findUnique({ where: { id: post.authorId } })
+import { batch } from 'batchkit'
+
+const users = batch(
+  (ids) => prisma.user.findMany({ where: { id: { in: ids } } }),
+  'id'
+)
+
+// In your GraphQL resolver
+const posts = await getPosts()
+const authors = await Promise.all(
+  posts.map(post => users.get(post.authorId))
+)
+// 50 posts = 1 database query, not 50
+```
+
+### React + TanStack Query
+
+```typescript
+import { batch } from 'batchkit'
+import { useQuery } from '@tanstack/react-query'
+
+const users = batch(
+  (ids, signal) => fetch(`/api/users?ids=${ids.join(',')}`, { signal }).then(r => r.json()),
+  'id'
+)
+
+function UserAvatar({ userId }: { userId: string }) {
+  const { data } = useQuery({
+    queryKey: ['user', userId],
+    queryFn: ({ signal }) => users.get(userId, { signal })
+  })
+  
+  return <img src={data?.avatar} />
 }
 
-// With batching: 50 posts = 1 query 🎉
-const userLoader = createBatcher({
-  resolver: async (ids) => {
-    const users = await db.users.findMany({ where: { id: { in: ids } } })
-    return ids.map(id => users.find(u => u.id === id))
-  },
-})
-
-await Promise.all(posts.map(async post => {
-  post.author = await userLoader.load(post.authorId)
-}))
+// Rendering 100 UserAvatars = 1 HTTP request
 ```
 
-### API Request Batching
+### API with Rate Limits
 
 ```typescript
-const productLoader = createBatcher({
-  resolver: async (productIds) => {
-    const response = await fetch('/api/products/batch', {
-      method: 'POST',
-      body: JSON.stringify({ ids: productIds }),
-    })
-    return response.json()
-  },
-  maxBatchSize: 50, // API limit
-})
+const products = batch(
+  (ids) => shopify.products.list({ ids }),
+  'id',
+  { max: 50 }  // Shopify's limit
+)
+
+// 200 product requests = 4 API calls (50 each)
 ```
 
-### SQLite Local-First Apps
+## TypeScript
+
+Full type inference:
 
 ```typescript
-const taskLoader = createBatcher({
-  resolver: async (ids) => {
-    const placeholders = ids.map(() => '?').join(',')
-    return db.query(`SELECT * FROM tasks WHERE id IN (${placeholders})`, ids)
-  },
-  name: 'tasks',
-  onBatch: (info) => {
-    console.log(`Loaded ${info.size} tasks in ${info.duration.toFixed(2)}ms`)
-  },
-})
+type User = { id: number; name: string }
+
+const users = batch(
+  async (ids: number[]): Promise<User[]> => fetchUsers(ids),
+  'id'
+)
+
+const user = await users.get(1) // user: User
+const many = await users.get([1, 2]) // many: User[]
 ```
 
 ## License
 
 MIT
-

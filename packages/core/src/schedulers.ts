@@ -1,98 +1,72 @@
-import type { Scheduler, WindowSchedulerOptions } from './types'
+import type { Scheduler } from './types'
 
 /**
- * Creates a window-based scheduler that batches requests within a time window.
- * Useful when you want to collect requests over a period of time before dispatching.
- *
- * @param options - Configuration for the window scheduler
- * @returns A scheduler function
- *
- * @example
- * ```ts
- * const batcher = createBatcher({
- *   resolver: async (keys) => fetchItems(keys),
- *   scheduler: windowScheduler({ wait: 10 }) // 10ms window
- * })
- * ```
+ * Microtask scheduler - batches within a single event loop tick.
+ * This is the default scheduler.
  */
-export function windowScheduler(options: WindowSchedulerOptions): Scheduler {
-  const { wait } = options
+export const microtask: Scheduler = (dispatch) => {
+  let cancelled = false
 
-  return (dispatch) => {
-    const timeoutId = setTimeout(() => {
+  queueMicrotask(() => {
+    if (!cancelled) {
       dispatch()
-    }, wait)
-
-    return () => {
-      clearTimeout(timeoutId)
     }
+  })
+
+  return () => {
+    cancelled = true
   }
 }
 
 /**
- * Creates a scheduler that batches requests until the next animation frame.
- * Useful for UI-related batching where you want to sync with rendering.
- *
- * @returns A scheduler function
- *
- * @example
- * ```ts
- * const batcher = createBatcher({
- *   resolver: async (keys) => fetchItems(keys),
- *   scheduler: animationFrameScheduler()
- * })
- * ```
+ * Creates a scheduler that waits a specified number of milliseconds.
  */
-export function animationFrameScheduler(): Scheduler {
+export function wait(ms: number): Scheduler {
   return (dispatch) => {
-    const frameId = requestAnimationFrame(() => {
-      dispatch()
-    })
-
-    return () => {
-      cancelAnimationFrame(frameId)
-    }
+    const id = setTimeout(dispatch, ms)
+    return () => clearTimeout(id)
   }
 }
 
 /**
- * Creates a scheduler that batches requests until idle.
- * Uses requestIdleCallback when available, falls back to setTimeout.
- *
- * @param options - Optional timeout configuration
- * @returns A scheduler function
+ * Scheduler that dispatches on the next animation frame.
+ * Good for render-related batching.
  *
  * @example
  * ```ts
- * const batcher = createBatcher({
- *   resolver: async (keys) => fetchItems(keys),
- *   scheduler: idleScheduler({ timeout: 100 })
- * })
+ * const sprites = batch(fn, 'id', { schedule: onAnimationFrame })
  * ```
  */
-export function idleScheduler(options?: { timeout?: number }): Scheduler {
+export const onAnimationFrame: Scheduler = (dispatch) => {
+  const id = requestAnimationFrame(dispatch)
+  return () => cancelAnimationFrame(id)
+}
+
+/**
+ * Creates a scheduler that dispatches when the browser is idle.
+ * Good for background/low-priority work.
+ *
+ * @example
+ * ```ts
+ * const analytics = batch(fn, 'id', { schedule: onIdle })
+ * const withTimeout = batch(fn, 'id', { schedule: onIdle({ timeout: 100 }) })
+ * ```
+ */
+export function onIdle(options?: { timeout?: number }): Scheduler {
   return (dispatch) => {
     if (typeof requestIdleCallback !== 'undefined') {
-      const idleId = requestIdleCallback(
-        () => {
-          dispatch()
-        },
+      const id = requestIdleCallback(
+        dispatch,
         options?.timeout ? { timeout: options.timeout } : undefined
       )
-
-      return () => {
-        cancelIdleCallback(idleId)
-      }
+      return () => cancelIdleCallback(id)
     }
 
-    // Fallback to setTimeout for environments without requestIdleCallback
-    const timeoutId = setTimeout(() => {
-      dispatch()
-    }, options?.timeout ?? 1)
-
-    return () => {
-      clearTimeout(timeoutId)
-    }
+    // Fallback for environments without requestIdleCallback
+    const id = setTimeout(dispatch, options?.timeout ?? 1)
+    return () => clearTimeout(id)
   }
 }
 
+// Also export as a direct scheduler for simple usage
+export const idle: Scheduler = onIdle()

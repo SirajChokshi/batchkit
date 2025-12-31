@@ -1,34 +1,24 @@
-// Core batcher
-export { createBatcher } from './batcher'
+// Main function
+export { batch } from './batch'
+
+// Match helper for Record responses
+export { indexed } from './indexed'
 
 // Schedulers
-export {
-  windowScheduler,
-  animationFrameScheduler,
-  idleScheduler,
-} from './schedulers'
+export { onAnimationFrame, onIdle } from './schedulers'
+
+// Error class
+export { BatchError } from './errors'
 
 // Types
 export type {
   Batcher,
-  BatcherOptions,
-  BatchInfo,
-  BatchErrorInfo,
-  PendingRequest,
+  BatchFn,
+  BatchOptions,
+  GetOptions,
+  Match,
+  MatchFn,
   Scheduler,
-  SchedulerType,
-  WindowSchedulerOptions,
+  TraceEvent,
+  TraceHandler,
 } from './types'
-
-// Error classes
-export { BatchError, ItemError } from './types'
-
-// Telemetry (internal API for debugging/visualization)
-export type {
-  BatcherTelemetry,
-  TelemetryEventMap,
-  TelemetryEvent,
-  TelemetryHandler,
-} from './telemetry'
-export { TelemetryEmitter, NoopTelemetry } from './telemetry'
-

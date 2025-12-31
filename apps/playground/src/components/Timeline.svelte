@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { TimelineEvent, BatchGroup } from '../lib/useBatcherTelemetry.svelte'
-  import type { TelemetryEventMap } from 'batchkit'
+  import type { TraceEvent } from 'batchkit'
 
   interface Props {
     events: TimelineEvent[]
@@ -16,7 +16,7 @@
     dispatchTime: number
     resolveTime: number | null
     duration: number | null
-    status: 'dispatching' | 'resolved' | 'error'
+    status: 'dispatching' | 'resolved' | 'error' | 'aborted'
     keyCount: number
   }
 
@@ -42,24 +42,23 @@
     let currentLoads: Array<{ id: string; key: unknown; time: number; deduped: boolean }> = []
     
     for (const event of events) {
-      if (event.type === 'load:called') {
-        const data = event.data as TelemetryEventMap['load:called']
+      const data = event.data as TraceEvent
+      
+      if (data.type === 'get') {
         currentLoads.push({
           id: event.id,
           key: data.key,
           time: event.relativeTime,
           deduped: false,
         })
-      } else if (event.type === 'load:deduped') {
-        const data = event.data as TelemetryEventMap['load:deduped']
+      } else if (data.type === 'dedup') {
         currentLoads.push({
           id: event.id,
           key: data.key,
           time: event.relativeTime,
           deduped: true,
         })
-      } else if (event.type === 'batch:dispatching') {
-        const data = event.data as TelemetryEventMap['batch:dispatching']
+      } else if (data.type === 'dispatch') {
         const batch = batches.get(data.batchId)
         
         // Add visual offset for stacked dots
@@ -74,7 +73,9 @@
           dispatchTime: event.relativeTime,
           resolveTime: batch?.endTime ?? null,
           duration: batch?.duration ?? null,
-          status: batch?.status === 'error' ? 'error' : batch?.status === 'resolved' ? 'resolved' : 'dispatching',
+          status: batch?.status === 'error' ? 'error' : 
+                  batch?.status === 'aborted' ? 'aborted' :
+                  batch?.status === 'resolved' ? 'resolved' : 'dispatching',
           keyCount: data.keys.length,
         })
         
@@ -144,39 +145,39 @@
   })
 </script>
 
-<div class="timeline-container">
-  <div class="timeline-header">
-    <h3>Timeline</h3>
+<div class="bg-stone-900 flex flex-col min-h-[200px] border-b border-stone-700">
+  <div class="flex justify-between items-center px-4 py-3 border-b border-stone-700">
+    <h3 class="text-xs uppercase tracking-wide text-stone-400 font-mono">Timeline</h3>
     {#if events.length > 0}
-      <span class="event-count">{events.length} events</span>
+      <span class="text-[0.7rem] text-stone-500 font-mono">{events.length} events</span>
     {/if}
   </div>
   
   {#if batchRows().length === 0}
-    <div class="empty-state">
-      <div class="empty-icon">◉</div>
-      <p>Click buttons to trigger load() calls</p>
-      <p class="hint">Watch requests batch together in real-time</p>
+    <div class="flex flex-col items-center justify-center py-12 px-4 text-center text-stone-500">
+      <div class="text-2xl text-stone-600 mb-3">◉</div>
+      <p class="text-sm font-mono">Click buttons to trigger get() calls</p>
+      <p class="text-xs text-stone-600 font-mono mt-1">Watch requests batch together in real-time</p>
     </div>
   {:else}
-    <div class="timeline-scroll">
+    <div class="p-4 overflow-x-auto">
       <!-- Time axis -->
-      <div class="time-axis">
+      <div class="relative h-6 ml-[60px] border-b border-stone-700">
         {#each timeMarkers() as marker}
-          <div class="time-marker" style="left: {timeToPercent(marker)}%">
-            <div class="marker-line"></div>
-            <span class="marker-label">{formatTime(marker)}</span>
+          <div class="absolute -translate-x-1/2" style="left: {timeToPercent(marker)}%">
+            <div class="w-px h-2 bg-stone-700"></div>
+            <span class="block text-[0.65rem] text-stone-500 font-mono whitespace-nowrap -translate-x-1/2 ml-[50%] mt-0.5">{formatTime(marker)}</span>
           </div>
         {/each}
       </div>
 
       <!-- Batch rows -->
-      <div class="batch-rows">
+      <div class="flex flex-col gap-1 mt-2">
         {#each batchRows() as row, index (row.batchId)}
-          <div class="batch-row">
+          <div class="flex items-center h-9">
             <!-- Row label -->
-            <div class="row-label">
-              <span class="batch-id">
+            <div class="w-[60px] shrink-0 pr-2 text-right">
+              <span class="text-[0.7rem] font-mono text-stone-500">
                 {#if row.batchId === 'pending'}
                   Pending
                 {:else}
@@ -186,26 +187,22 @@
             </div>
 
             <!-- Row timeline -->
-            <div class="row-track">
+            <div class="flex-1 relative h-full bg-stone-800">
               <!-- Load event dots -->
               {#each row.loads as load, i (load.id)}
                 <div 
-                  class="load-dot"
-                  class:deduped={load.deduped}
+                  class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-[2]"
                   style="left: calc({timeToPercent(load.time)}% + {load.visualOffset ?? 0}px)"
                   title="{formatKey(load.key)}{load.deduped ? ' (deduped)' : ''}"
                 >
-                  <div class="dot"></div>
+                  <div class="w-2 h-2 bg-stone-100 {load.deduped ? 'opacity-40 w-1.5 h-1.5' : ''}"></div>
                 </div>
               {/each}
 
               <!-- Batch span -->
               {#if row.status !== 'dispatching' || row.batchId === 'pending'}
                 <div 
-                  class="batch-span"
-                  class:resolved={row.status === 'resolved'}
-                  class:error={row.status === 'error'}
-                  class:pending={row.batchId === 'pending'}
+                  class="absolute top-1/2 h-0.5 -translate-y-1/2 flex items-center"
                   style="
                     left: {timeToPercent(row.loads[0]?.time ?? row.dispatchTime)}%;
                     width: {row.resolveTime 
@@ -213,14 +210,16 @@
                       : Math.max(5, timeToPercent(row.dispatchTime + 50) - timeToPercent(row.loads[0]?.time ?? row.dispatchTime))}%;
                   "
                 >
-                  <div class="span-line"></div>
-                  <div class="span-end">
+                  <div class="flex-1 h-0.5 {row.status === 'resolved' ? 'bg-stone-400' : row.status === 'error' ? 'bg-stone-500' : 'bg-stone-600'} {row.batchId === 'pending' ? 'opacity-40' : 'opacity-60'}"></div>
+                  <div class="flex items-center justify-center w-4 h-4 bg-stone-900 border border-stone-500 -ml-px {row.batchId === 'pending' ? 'border-dashed' : ''}">
                     {#if row.status === 'resolved'}
-                      <span class="status-icon">✓</span>
+                      <span class="text-[0.6rem] text-stone-400">✓</span>
                     {:else if row.status === 'error'}
-                      <span class="status-icon error">✗</span>
+                      <span class="text-[0.6rem] text-stone-500">✗</span>
+                    {:else if row.status === 'aborted'}
+                      <span class="text-[0.6rem] text-stone-600">⊘</span>
                     {:else}
-                      <span class="status-icon pending">⋯</span>
+                      <span class="text-[0.6rem] text-stone-600">⋯</span>
                     {/if}
                   </div>
                 </div>
@@ -228,12 +227,12 @@
 
               <!-- Batch info tooltip -->
               <div 
-                class="batch-info"
+                class="absolute top-1/2 translate-x-2 -translate-y-1/2 flex gap-2 text-[0.65rem] whitespace-nowrap font-mono"
                 style="left: {timeToPercent(row.resolveTime ?? row.dispatchTime)}%"
               >
-                <span class="info-keys">{row.keyCount} key{row.keyCount !== 1 ? 's' : ''}</span>
+                <span class="text-stone-500">{row.keyCount} key{row.keyCount !== 1 ? 's' : ''}</span>
                 {#if row.duration}
-                  <span class="info-duration">{row.duration.toFixed(0)}ms</span>
+                  <span class="text-stone-400">{row.duration.toFixed(0)}ms</span>
                 {/if}
               </div>
             </div>
@@ -243,248 +242,3 @@
     </div>
   {/if}
 </div>
-
-<style>
-  .timeline-container {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    display: flex;
-    flex-direction: column;
-    min-height: 200px;
-  }
-
-  .timeline-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  h3 {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-secondary);
-    margin: 0;
-  }
-
-  .event-count {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-  }
-
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem 1rem;
-    text-align: center;
-    color: var(--text-muted);
-  }
-
-  .empty-icon {
-    font-size: 1.5rem;
-    color: var(--accent-primary);
-    opacity: 0.5;
-    margin-bottom: 0.75rem;
-  }
-
-  .empty-state p {
-    margin: 0.2rem 0;
-    font-size: 0.85rem;
-  }
-
-  .hint {
-    color: var(--accent-primary);
-    font-size: 0.8rem !important;
-  }
-
-  .timeline-scroll {
-    padding: 1rem;
-    overflow-x: auto;
-  }
-
-  .time-axis {
-    position: relative;
-    height: 24px;
-    margin-left: 60px;
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  .time-marker {
-    position: absolute;
-    transform: translateX(-50%);
-  }
-
-  .marker-line {
-    width: 1px;
-    height: 8px;
-    background: var(--border-color);
-  }
-
-  .marker-label {
-    display: block;
-    font-size: 0.65rem;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    white-space: nowrap;
-    transform: translateX(-50%);
-    margin-left: 50%;
-    margin-top: 2px;
-  }
-
-  .batch-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    margin-top: 0.5rem;
-  }
-
-  .batch-row {
-    display: flex;
-    align-items: center;
-    height: 36px;
-  }
-
-  .row-label {
-    width: 60px;
-    flex-shrink: 0;
-    padding-right: 0.5rem;
-    text-align: right;
-  }
-
-  .batch-id {
-    font-size: 0.7rem;
-    font-family: var(--font-mono);
-    color: var(--text-muted);
-  }
-
-  .row-track {
-    flex: 1;
-    position: relative;
-    height: 100%;
-    background: var(--bg-tertiary);
-    border-radius: 4px;
-  }
-
-  .load-dot {
-    position: absolute;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 2;
-  }
-
-  .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--accent-primary);
-    box-shadow: 0 0 6px var(--accent-primary);
-    animation: popIn 0.15s ease;
-  }
-
-  @keyframes popIn {
-    from { transform: scale(0); }
-    to { transform: scale(1); }
-  }
-
-  .load-dot.deduped .dot {
-    width: 7px;
-    height: 7px;
-    background: var(--accent-warning);
-    box-shadow: 0 0 4px var(--accent-warning);
-    opacity: 0.7;
-  }
-
-  .batch-span {
-    position: absolute;
-    top: 50%;
-    height: 2px;
-    transform: translateY(-50%);
-    display: flex;
-    align-items: center;
-  }
-
-  .span-line {
-    flex: 1;
-    height: 2px;
-    background: var(--accent-secondary);
-    opacity: 0.6;
-  }
-
-  .batch-span.resolved .span-line {
-    background: var(--accent-success);
-  }
-
-  .batch-span.error .span-line {
-    background: var(--accent-error);
-  }
-
-  .batch-span.pending .span-line {
-    background: var(--text-muted);
-    opacity: 0.4;
-  }
-
-  .span-end {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--bg-card);
-    border: 2px solid var(--accent-success);
-    margin-left: -1px;
-  }
-
-  .batch-span.error .span-end {
-    border-color: var(--accent-error);
-  }
-
-  .batch-span.pending .span-end {
-    border-color: var(--text-muted);
-    border-style: dashed;
-  }
-
-  .status-icon {
-    font-size: 0.65rem;
-    color: var(--accent-success);
-  }
-
-  .status-icon.error {
-    color: var(--accent-error);
-  }
-
-  .status-icon.pending {
-    color: var(--text-muted);
-    animation: pulse 1s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-
-  .batch-info {
-    position: absolute;
-    top: 50%;
-    transform: translate(8px, -50%);
-    display: flex;
-    gap: 0.5rem;
-    font-size: 0.65rem;
-    white-space: nowrap;
-  }
-
-  .info-keys {
-    color: var(--text-muted);
-  }
-
-  .info-duration {
-    color: var(--accent-primary);
-    font-family: var(--font-mono);
-  }
-</style>

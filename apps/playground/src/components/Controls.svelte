@@ -1,11 +1,11 @@
 <script lang="ts">
   interface Props {
-    schedulerType: 'microtask' | 'window' | 'manual'
+    schedulerType: 'microtask' | 'window' | 'animationFrame' | 'idle' | 'manual'
     onLoadKey: () => void
     onLoadRandom: (count: number) => void
     onLoadDuplicate: () => void
     onBurst: (count: number) => void
-    onDispatch: () => void
+    onFlush: () => void
     onClear: () => void
   }
 
@@ -15,145 +15,57 @@
     onLoadRandom, 
     onLoadDuplicate,
     onBurst,
-    onDispatch,
+    onFlush,
     onClear
   }: Props = $props()
 </script>
 
-<div class="controls">
-  <h3>Controls</h3>
+<div class="bg-stone-900 p-4">
+  <h3 class="text-xs uppercase tracking-wide text-stone-500 mb-4 font-mono">Controls</h3>
   
-  <div class="button-group">
-    <button class="btn btn-primary" onclick={onLoadKey}>
+  <!-- Button group with shared border -->
+  <div class="border border-stone-700 flex mb-3">
+    <button 
+      onclick={onLoadKey}
+      class="flex-1 px-3 py-2 text-xs font-mono text-stone-100 bg-stone-800 hover:bg-stone-700 cursor-pointer"
+    >
       Load Key
     </button>
-    <button class="btn btn-secondary" onclick={() => onLoadRandom(5)}>
+    <button 
+      onclick={() => onLoadRandom(5)}
+      class="flex-1 px-3 py-2 text-xs font-mono text-stone-400 bg-stone-900 border-l border-stone-700 hover:bg-stone-800 hover:text-stone-100 cursor-pointer"
+    >
       Load 5 Random
     </button>
-    <button class="btn btn-secondary" onclick={onLoadDuplicate}>
-      Load Duplicate ×3
+    <button 
+      onclick={onLoadDuplicate}
+      class="flex-1 px-3 py-2 text-xs font-mono text-stone-400 bg-stone-900 border-l border-stone-700 hover:bg-stone-800 hover:text-stone-100 cursor-pointer"
+    >
+      Load Dup ×3
     </button>
   </div>
 
-  <div class="button-group">
-    <button class="btn btn-accent" onclick={() => onBurst(20)}>
+  <div class="border border-stone-700 flex mb-3">
+    <button 
+      onclick={() => onBurst(20)}
+      class="flex-1 px-3 py-2 text-xs font-mono text-stone-400 bg-stone-900 hover:bg-stone-800 hover:text-stone-100 cursor-pointer"
+    >
       Burst 20
     </button>
-    {#if schedulerType === 'manual'}
-      <button class="btn btn-success" onclick={onDispatch}>
-        Dispatch
-      </button>
-    {/if}
+    <button 
+      onclick={onFlush}
+      class="flex-1 px-3 py-2 text-xs font-mono text-stone-100 bg-stone-800 border-l border-stone-700 hover:bg-stone-700 cursor-pointer"
+    >
+      Flush Now
+    </button>
   </div>
 
-  <div class="divider"></div>
+  <div class="h-px bg-stone-700 my-3"></div>
 
-  <button class="btn btn-ghost" onclick={onClear}>
+  <button 
+    onclick={onClear}
+    class="w-full px-3 py-2 text-xs font-mono text-stone-500 bg-transparent hover:text-stone-300 hover:bg-stone-800 cursor-pointer"
+  >
     Clear Timeline
   </button>
 </div>
-
-<style>
-  .controls {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    padding: 1rem;
-  }
-
-  h3 {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    margin-bottom: 1rem;
-  }
-
-  .button-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .btn {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-  }
-
-  .btn:hover {
-    background: var(--bg-secondary);
-    border-color: var(--text-muted);
-  }
-
-  .btn:active {
-    transform: scale(0.98);
-  }
-
-  .btn-primary {
-    background: var(--accent-primary);
-    border-color: var(--accent-primary);
-    color: var(--bg-primary);
-  }
-
-  .btn-primary:hover {
-    background: color-mix(in srgb, var(--accent-primary) 85%, white);
-    border-color: color-mix(in srgb, var(--accent-primary) 85%, white);
-  }
-
-  .btn-secondary {
-    background: var(--bg-tertiary);
-    border-color: var(--accent-primary);
-    color: var(--accent-primary);
-  }
-
-  .btn-secondary:hover {
-    background: color-mix(in srgb, var(--accent-primary) 15%, var(--bg-tertiary));
-  }
-
-  .btn-accent {
-    background: var(--accent-secondary);
-    border-color: var(--accent-secondary);
-    color: var(--bg-primary);
-  }
-
-  .btn-accent:hover {
-    background: color-mix(in srgb, var(--accent-secondary) 85%, white);
-    border-color: color-mix(in srgb, var(--accent-secondary) 85%, white);
-  }
-
-  .btn-success {
-    background: var(--accent-success);
-    border-color: var(--accent-success);
-    color: var(--bg-primary);
-  }
-
-  .btn-success:hover {
-    background: color-mix(in srgb, var(--accent-success) 85%, white);
-  }
-
-  .btn-ghost {
-    background: transparent;
-    border-color: transparent;
-    color: var(--text-muted);
-  }
-
-  .btn-ghost:hover {
-    color: var(--text-primary);
-    background: var(--bg-tertiary);
-  }
-
-  .divider {
-    height: 1px;
-    background: var(--border-color);
-    margin: 0.75rem 0;
-  }
-</style>
-
