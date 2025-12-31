@@ -11,6 +11,6 @@
     "dev": "bun run --filter playground dev"
   },
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "typescript": "5.3.3"
   }
 }
