@@ -4,17 +4,8 @@ import Playground from '../components/Playground.svelte';
 ---
 
 <Layout title="Batchkit Playground">
-  <main>
+  <main class="min-h-screen p-6 max-w-[1400px] mx-auto">
     <Playground client:load />
   </main>
 </Layout>
-
-<style>
-  main {
-    min-height: 100vh;
-    padding: 1.5rem;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-</style>
 

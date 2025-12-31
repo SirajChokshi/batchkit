@@ -1,15 +1,15 @@
 /**
- * Svelte 5 bridge for batchkit telemetry
- * Connects the batcher's telemetry events to reactive Svelte state
+ * Svelte 5 bridge for batchkit tracing
+ * Connects the batcher's trace events to reactive Svelte state
  */
 
-import type { Batcher, TelemetryEvent, TelemetryEventMap } from 'batchkit'
+import type { TraceEvent, TraceHandler } from 'batchkit'
 
 export interface TimelineEvent {
   id: string
-  type: TelemetryEvent['type']
+  type: TraceEvent['type']
   timestamp: number
-  data: TelemetryEvent['data']
+  data: TraceEvent
   // Computed for visualization
   relativeTime: number
 }
@@ -17,11 +17,10 @@ export interface TimelineEvent {
 export interface BatchGroup {
   batchId: string
   keys: unknown[]
-  status: 'pending' | 'dispatching' | 'resolved' | 'error'
+  status: 'pending' | 'dispatching' | 'resolved' | 'error' | 'aborted'
   startTime: number
   endTime?: number
   duration?: number
-  results?: unknown[]
   error?: Error
 }
 
@@ -31,7 +30,6 @@ export interface TelemetryState {
   stats: {
     totalLoads: number
     totalBatches: number
-    cacheHits: number
     dedupedKeys: number
     avgBatchSize: number
     avgDuration: number
@@ -39,110 +37,146 @@ export interface TelemetryState {
 }
 
 /**
- * Create reactive telemetry state from a batcher
+ * Create reactive telemetry state that can be used with batchers
  */
 export function createTelemetryState() {
   let events = $state<TimelineEvent[]>([])
   let batches = $state<Map<string, BatchGroup>>(new Map())
-  let startTime = $state<number>(0)
+  let startTime = $state<number>(performance.now())
 
   // Computed stats
   const stats = $derived({
-    totalLoads: events.filter(e => e.type === 'load:called').length,
-    totalBatches: events.filter(e => e.type === 'batch:resolved').length,
-    cacheHits: events.filter(e => e.type === 'load:cached').length,
-    dedupedKeys: events.filter(e => e.type === 'load:deduped').length,
+    totalLoads: events.filter(e => e.type === 'get').length,
+    totalBatches: events.filter(e => e.type === 'resolve').length,
+    dedupedKeys: events.filter(e => e.type === 'dedup').length,
     avgBatchSize: (() => {
-      const resolved = events.filter(e => e.type === 'batch:resolved')
-      if (resolved.length === 0) return 0
-      const total = resolved.reduce((sum, e) => {
-        const data = e.data as TelemetryEventMap['batch:resolved']
+      const dispatches = events.filter(e => e.type === 'dispatch')
+      if (dispatches.length === 0) return 0
+      const total = dispatches.reduce((sum, e) => {
+        const data = e.data as Extract<TraceEvent, { type: 'dispatch' }>
         return sum + data.keys.length
       }, 0)
-      return total / resolved.length
+      return total / dispatches.length
     })(),
     avgDuration: (() => {
-      const resolved = events.filter(e => e.type === 'batch:resolved')
+      const resolved = events.filter(e => e.type === 'resolve')
       if (resolved.length === 0) return 0
       const total = resolved.reduce((sum, e) => {
-        const data = e.data as TelemetryEventMap['batch:resolved']
+        const data = e.data as Extract<TraceEvent, { type: 'resolve' }>
         return sum + data.duration
       }, 0)
       return total / resolved.length
     })(),
   })
 
-  let unsubscribe: (() => void) | null = null
   let eventCounter = 0
 
-  function subscribe<K, V>(batcher: Batcher<K, V>) {
-    // Unsubscribe from previous batcher if any
-    if (unsubscribe) {
-      unsubscribe()
-    }
+  /**
+   * Returns a trace handler that updates this state.
+   * Pass this to batch() as the trace option.
+   * 
+   * Uses requestAnimationFrame to batch multiple trace events
+   * into a single UI update, preventing lag during bursts.
+   */
+  function createTraceHandler(): TraceHandler {
+    let pending: TraceEvent[] = []
+    let scheduled = false
 
-    // Reset state
-    events = []
-    batches = new Map()
-    startTime = performance.now()
-    eventCounter = 0
+    return (event: TraceEvent) => {
+      pending.push(event)
 
-    // Subscribe to all telemetry events
-    unsubscribe = batcher._telemetry.onAll((event) => {
-      const timelineEvent: TimelineEvent = {
-        id: `event-${++eventCounter}`,
-        type: event.type,
-        timestamp: event.data.timestamp,
-        data: event.data,
-        relativeTime: event.data.timestamp - startTime,
-      }
+      if (!scheduled) {
+        scheduled = true
+        requestAnimationFrame(() => {
+          // Grab all pending events
+          const batch = pending
+          pending = []
+          scheduled = false
 
-      events = [...events, timelineEvent]
+          // Convert to timeline events
+          const newTimelineEvents: TimelineEvent[] = batch.map(e => ({
+            id: `event-${++eventCounter}`,
+            type: e.type,
+            timestamp: e.timestamp,
+            data: e,
+            relativeTime: e.timestamp - startTime,
+          }))
 
-      // Track batch lifecycle
-      if (event.type === 'batch:dispatching') {
-        const data = event.data as TelemetryEventMap['batch:dispatching']
-        const newBatches = new Map(batches)
-        newBatches.set(data.batchId, {
-          batchId: data.batchId,
-          keys: data.keys,
-          status: 'dispatching',
-          startTime: data.timestamp - startTime,
+          // Single state update for all events
+          events = [...events, ...newTimelineEvents]
+
+          // Process batch updates
+          let batchesChanged = false
+          let newBatches = batches
+
+          for (const event of batch) {
+            if (event.type === 'dispatch') {
+              if (!batchesChanged) {
+                newBatches = new Map(batches)
+                batchesChanged = true
+              }
+              newBatches.set(event.batchId, {
+                batchId: event.batchId,
+                keys: event.keys,
+                status: 'dispatching',
+                startTime: event.timestamp - startTime,
+              })
+            }
+
+            if (event.type === 'resolve') {
+              const existing = (batchesChanged ? newBatches : batches).get(event.batchId)
+              if (existing) {
+                if (!batchesChanged) {
+                  newBatches = new Map(batches)
+                  batchesChanged = true
+                }
+                newBatches.set(event.batchId, {
+                  ...existing,
+                  status: 'resolved',
+                  endTime: event.timestamp - startTime,
+                  duration: event.duration,
+                })
+              }
+            }
+
+            if (event.type === 'error') {
+              const existing = (batchesChanged ? newBatches : batches).get(event.batchId)
+              if (existing) {
+                if (!batchesChanged) {
+                  newBatches = new Map(batches)
+                  batchesChanged = true
+                }
+                newBatches.set(event.batchId, {
+                  ...existing,
+                  status: 'error',
+                  endTime: event.timestamp - startTime,
+                  error: event.error,
+                })
+              }
+            }
+
+            if (event.type === 'abort') {
+              const existing = (batchesChanged ? newBatches : batches).get(event.batchId)
+              if (existing) {
+                if (!batchesChanged) {
+                  newBatches = new Map(batches)
+                  batchesChanged = true
+                }
+                newBatches.set(event.batchId, {
+                  ...existing,
+                  status: 'aborted',
+                  endTime: event.timestamp - startTime,
+                })
+              }
+            }
+          }
+
+          if (batchesChanged) {
+            batches = newBatches
+          }
         })
-        batches = newBatches
       }
-
-      if (event.type === 'batch:resolved') {
-        const data = event.data as TelemetryEventMap['batch:resolved']
-        const existing = batches.get(data.batchId)
-        if (existing) {
-          const newBatches = new Map(batches)
-          newBatches.set(data.batchId, {
-            ...existing,
-            status: 'resolved',
-            endTime: data.timestamp - startTime,
-            duration: data.duration,
-            results: data.results as unknown[],
-          })
-          batches = newBatches
-        }
-      }
-
-      if (event.type === 'batch:error') {
-        const data = event.data as TelemetryEventMap['batch:error']
-        const existing = batches.get(data.batchId)
-        if (existing) {
-          const newBatches = new Map(batches)
-          newBatches.set(data.batchId, {
-            ...existing,
-            status: 'error',
-            endTime: data.timestamp - startTime,
-            error: data.error,
-          })
-          batches = newBatches
-        }
-      }
-    })
+    }
   }
 
   function clear() {
@@ -152,21 +186,12 @@ export function createTelemetryState() {
     eventCounter = 0
   }
 
-  function cleanup() {
-    if (unsubscribe) {
-      unsubscribe()
-      unsubscribe = null
-    }
-  }
-
   return {
     get events() { return events },
     get batches() { return batches },
     get stats() { return stats },
     get startTime() { return startTime },
-    subscribe,
+    createTraceHandler,
     clear,
-    cleanup,
   }
 }
-

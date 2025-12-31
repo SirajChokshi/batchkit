@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { createBatcher, windowScheduler } from 'batchkit'
-  import type { Batcher, SchedulerType } from 'batchkit'
+  import { batch, onAnimationFrame, onIdle } from 'batchkit'
+  import type { Batcher, Scheduler } from 'batchkit'
   import { createTelemetryState } from '../lib/useBatcherTelemetry.svelte'
   import ConfigPanel from './ConfigPanel.svelte'
   import Controls from './Controls.svelte'
@@ -8,7 +8,7 @@
   import EventLog from './EventLog.svelte'
 
   // Configuration state
-  let schedulerType = $state<'microtask' | 'window' | 'manual'>('microtask')
+  let schedulerType = $state<'microtask' | 'window' | 'animationFrame' | 'idle' | 'manual'>('microtask')
   let windowDelay = $state(10)
   let maxBatchSize = $state(0) // 0 = unlimited
   let resolverDelay = $state(50)
@@ -28,69 +28,80 @@
 
   // Create/recreate batcher when config changes
   function createNewBatcher() {
-    let scheduler: SchedulerType = 'microtask'
-    if (schedulerType === 'window') {
-      scheduler = windowScheduler({ wait: windowDelay })
-    } else if (schedulerType === 'manual') {
-      scheduler = 'manual'
-    }
+    // Clear previous state
+    telemetry.clear()
 
-    const newBatcher = createBatcher<string, string>({
-      name: 'playground',
-      resolver: async (keys) => {
+    // Determine scheduler
+    let schedule: Scheduler | undefined
+    let wait: number | undefined
+
+    if (schedulerType === 'window') {
+      wait = windowDelay
+    } else if (schedulerType === 'animationFrame') {
+      schedule = onAnimationFrame
+    } else if (schedulerType === 'idle') {
+      schedule = onIdle({ timeout: 100 })
+    }
+    // For 'microtask', leave both undefined (default)
+    // For 'manual', we'll handle flush manually
+
+    const newBatcher = batch<string, string>(
+      async (keys, _signal) => {
         // Simulate async work
         await new Promise(r => setTimeout(r, resolverDelay))
-        return keys.map(key => database.get(key) ?? `Not found: ${key}`)
+        return keys.map(key => ({ id: key, value: database.get(key) ?? `Not found: ${key}` }))
       },
-      scheduler,
-      maxBatchSize: maxBatchSize > 0 ? maxBatchSize : undefined,
-      _enableTelemetry: true,
-    })
+      'id',
+      {
+        wait,
+        schedule,
+        max: maxBatchSize > 0 ? maxBatchSize : undefined,
+        name: 'playground',
+        trace: telemetry.createTraceHandler(),
+      }
+    )
 
     batcher = newBatcher
-    telemetry.subscribe(newBatcher)
-    telemetry.clear()
   }
 
   // Initialize batcher on mount
   $effect(() => {
     createNewBatcher()
-    return () => telemetry.cleanup()
   })
 
   // Handlers for controls
   function handleLoadKey() {
     if (!batcher) return
     const key = `user-${(keyCounter++ % 10) + 1}`
-    batcher.load(key)
+    batcher.get(key)
   }
 
   function handleLoadRandom(count: number) {
     if (!batcher) return
     for (let i = 0; i < count; i++) {
       const id = Math.floor(Math.random() * 100) + 1
-      batcher.load(`user-${id}`)
+      batcher.get(`user-${id}`)
     }
   }
 
   function handleLoadDuplicate() {
     if (!batcher) return
     const key = 'user-1'
-    batcher.load(key)
-    batcher.load(key)
-    batcher.load(key)
+    batcher.get(key)
+    batcher.get(key)
+    batcher.get(key)
   }
 
   function handleBurst(count: number) {
     if (!batcher) return
     for (let i = 0; i < count; i++) {
-      batcher.load(`user-${(i % 20) + 1}`)
+      batcher.get(`user-${(i % 20) + 1}`)
     }
   }
 
-  function handleDispatch() {
+  function handleFlush() {
     if (!batcher) return
-    batcher.dispatch()
+    batcher.flush()
   }
 
   function handleClearTimeline() {
@@ -102,17 +113,15 @@
   }
 </script>
 
-<div class="playground">
-  <header class="header">
-    <h1>
-      <span class="logo">●●●</span>
-      Batchkit Playground
-    </h1>
-    <p class="subtitle">Real-time visualization of request batching</p>
+<div class="flex flex-col gap-6">
+  <header class="flex items-center gap-2 py-2 border-b border-stone-700">
+    <h1 class="text-sm font-medium text-stone-100 font-mono">batchkit</h1>
+    <span class="text-sm text-stone-500">/</span>
+    <span class="text-sm text-stone-500 font-mono">playground</span>
   </header>
 
-  <div class="layout">
-    <div class="sidebar">
+  <div class="grid grid-cols-[280px_1fr] max-md:grid-cols-1 border border-stone-700">
+    <div class="flex flex-col border-r border-stone-700 max-md:border-r-0 max-md:border-b">
       <ConfigPanel
         bind:schedulerType
         bind:windowDelay
@@ -127,12 +136,12 @@
         onLoadRandom={handleLoadRandom}
         onLoadDuplicate={handleLoadDuplicate}
         onBurst={handleBurst}
-        onDispatch={handleDispatch}
+        onFlush={handleFlush}
         onClear={handleClearTimeline}
       />
     </div>
 
-    <div class="main-content">
+    <div class="flex flex-col min-w-0">
       <Timeline 
         events={telemetry.events} 
         batches={telemetry.batches}
@@ -142,62 +151,3 @@
     </div>
   </div>
 </div>
-
-<style>
-  .playground {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .header {
-    text-align: center;
-    padding: 0.5rem 0;
-  }
-
-  .header h1 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-  }
-
-  .logo {
-    color: var(--accent-primary);
-    letter-spacing: -0.2em;
-    font-size: 1.1rem;
-  }
-
-  .subtitle {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    margin-top: 0.125rem;
-  }
-
-  .layout {
-    display: grid;
-    grid-template-columns: 280px 1fr;
-    gap: 1.25rem;
-  }
-
-  .sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .main-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    min-width: 0;
-  }
-
-  @media (max-width: 800px) {
-    .layout {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>
