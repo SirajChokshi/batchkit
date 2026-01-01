@@ -1,6 +1,6 @@
 # batchkit
 
-Automatic batching for async operations. Solve the N+1 problem with two lines of code.
+Automatic batching for async operations.
 
 ## Installation
 
@@ -210,24 +210,6 @@ batch(fn, 'id', {
 ```
 
 ## Examples
-
-### Database N+1 Problem
-
-```typescript
-import { batch } from 'batchkit'
-
-const users = batch(
-  (ids) => prisma.user.findMany({ where: { id: { in: ids } } }),
-  'id'
-)
-
-// In your GraphQL resolver
-const posts = await getPosts()
-const authors = await Promise.all(
-  posts.map(post => users.get(post.authorId))
-)
-// 50 posts = 1 database query, not 50
-```
 
 ### React + TanStack Query
 

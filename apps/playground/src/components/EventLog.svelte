@@ -4,9 +4,45 @@ import type { TimelineEvent } from '../lib/useBatcherTelemetry.svelte';
 
 interface Props {
   events: TimelineEvent[];
+  hoveredBatchId?: string | null;
 }
 
-const { events }: Props = $props();
+const { events, hoveredBatchId }: Props = $props();
+
+// Build a map of event IDs to their batch IDs (for get events that happen before dispatch)
+const eventToBatchMap = $derived.by(() => {
+  const map = new Map<string, string>();
+  let currentEventIds: string[] = [];
+  
+  for (const event of events) {
+    const data = event.data as TraceEvent;
+    
+    if (data.type === 'get' || data.type === 'dedup') {
+      currentEventIds.push(event.id);
+    } else if (data.type === 'dispatch') {
+      // Assign all pending get events to this batch
+      for (const id of currentEventIds) {
+        map.set(id, data.batchId);
+      }
+      currentEventIds = [];
+      map.set(event.id, data.batchId);
+    } else if (data.type === 'schedule' || data.type === 'resolve' || data.type === 'error' || data.type === 'abort') {
+      map.set(event.id, data.batchId);
+    }
+  }
+  
+  // Assign remaining events to 'pending' batch
+  for (const id of currentEventIds) {
+    map.set(id, 'pending');
+  }
+  
+  return map;
+});
+
+function isHighlighted(event: TimelineEvent): boolean {
+  if (!hoveredBatchId) return false;
+  return eventToBatchMap.get(event.id) === hoveredBatchId;
+}
 
 // Show most recent events first, limited to last 100
 const displayEvents = $derived([...events].reverse().slice(0, 100));
@@ -64,23 +100,23 @@ function formatEventData(event: TimelineEvent): string {
 }
 </script>
 
-<div class="bg-stone-900 flex flex-col flex-1 min-h-[180px]">
+<div class="bg-stone-900 flex flex-col flex-1 min-h-0">
   <!-- Header -->
   <div class="flex items-center justify-between px-3 py-2 border-b border-stone-700 shrink-0">
-    <h3 class="text-[11px] uppercase tracking-wider text-stone-500 font-mono font-medium">Event Log</h3>
+    <h3 class="text-xs uppercase tracking-wider text-stone-500 font-mono font-medium">Event Log</h3>
     {#if events.length > 0}
-      <span class="text-[10px] text-stone-600 font-mono">{events.length} total</span>
+      <span class="text-xs text-stone-600 font-mono">{events.length} total</span>
     {/if}
   </div>
   
-  <div class="flex-1 overflow-hidden flex flex-col">
+  <div class="flex-1 overflow-y-auto min-h-0 h-full flex flex-col">
     {#if events.length === 0}
       <div class="flex-1 flex items-center justify-center">
-        <p class="text-[11px] text-stone-600 font-mono">No events recorded</p>
+        <p class="text-sm text-stone-600 font-mono">No events recorded</p>
       </div>
     {:else}
       <!-- Table header -->
-      <div class="grid grid-cols-[70px_24px_72px_1fr] text-[10px] font-mono text-stone-600 uppercase tracking-wider border-b border-stone-800 shrink-0">
+      <div class="grid grid-cols-[70px_24px_72px_1fr] text-xs font-mono text-stone-600 uppercase tracking-wider border-b border-stone-800 shrink-0">
         <div class="px-3 py-1.5">Time</div>
         <div class="py-1.5"></div>
         <div class="px-2 py-1.5">Type</div>
@@ -91,17 +127,20 @@ function formatEventData(event: TimelineEvent): string {
       <div class="eventlog-scroll flex-1 overflow-y-auto">
         {#each displayEvents as event (event.id)}
           {@const rowStyle = getRowStyle(event.type)}
-          <div class="grid grid-cols-[70px_24px_72px_1fr] border-b border-stone-800/50 hover:bg-stone-800/30 {rowStyle}">
-            <div class="px-3 py-1 text-[11px] font-mono tabular-nums text-stone-600">
+          {@const highlighted = isHighlighted(event)}
+          <div class="grid grid-cols-[70px_24px_72px_1fr] border-b border-stone-800/50 transition-colors
+            {highlighted ? 'bg-stone-700/60 border-stone-600' : 'hover:bg-stone-800/30'}
+            {rowStyle}">
+            <div class="px-3 py-1 text-sm font-mono tabular-nums text-stone-600">
               {event.relativeTime.toFixed(0)}ms
             </div>
-            <div class="py-1 text-[11px] font-mono text-center">
+            <div class="py-1 text-sm font-mono text-center">
               {getEventIcon(event.type)}
             </div>
-            <div class="px-2 py-1 text-[11px] font-mono">
+            <div class="px-2 py-1 text-sm font-mono">
               {event.type}
             </div>
-            <div class="px-2 py-1 text-[11px] font-mono text-stone-500 truncate">
+            <div class="px-2 py-1 text-sm font-mono text-stone-500 truncate">
               {formatEventData(event)}
             </div>
           </div>

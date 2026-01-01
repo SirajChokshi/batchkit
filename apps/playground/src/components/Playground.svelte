@@ -20,6 +20,9 @@ const telemetry = createTelemetryState();
 let batcher: Batcher<string, { id: string; value: string }> | null = $state(null);
 let keyCounter = $state(0);
 
+// Hover state for cross-highlighting
+let hoveredBatchId: string | null = $state(null);
+
 // Simulated database
 const database = new Map<string, string>();
 for (let i = 1; i <= 100; i++) {
@@ -116,15 +119,11 @@ function handleConfigChange() {
 }
 </script>
 
-<div class="flex flex-col gap-6">
-  <header class="flex items-center gap-2 py-2 border-b border-stone-700">
-    <h1 class="text-sm font-medium text-stone-100 font-mono">batchkit</h1>
-    <span class="text-sm text-stone-500">/</span>
-    <span class="text-sm text-stone-500 font-mono">playground</span>
-  </header>
-
-  <div class="grid grid-cols-[280px_1fr] max-md:grid-cols-1 border border-stone-700">
-    <div class="flex flex-col border-r border-stone-700 max-md:border-r-0 max-md:border-b">
+<div class="flex flex-col h-full min-h-0 mt-4 border border-stone-700">
+  <!-- Main 3-column layout -->
+  <div class="flex-1 grid grid-cols-12 max-lg:grid-cols-1 min-h-0 h-full">
+    <!-- Left: Controls -->
+    <div class="flex flex-col border-r border-stone-700 overflow-y-auto max-lg:border-r-0 max-lg:border-b col-span-3">
       <ConfigPanel
         bind:schedulerType
         bind:windowDelay
@@ -132,7 +131,6 @@ function handleConfigChange() {
         bind:resolverDelay
         onConfigChange={handleConfigChange}
       />
-
       <Controls
         {schedulerType}
         onLoadKey={handleLoadKey}
@@ -144,13 +142,18 @@ function handleConfigChange() {
       />
     </div>
 
-    <div class="flex flex-col min-w-0">
-      <Timeline 
+    <!-- Center: Batching Demo -->
+    <div class="flex flex-col min-w-0 overflow-y-auto col-span-6">
+      <Timeline
         events={telemetry.events} 
         batches={telemetry.batches}
+        onHoverBatch={(id) => hoveredBatchId = id}
       />
+    </div>
 
-      <EventLog events={telemetry.events} />
+    <!-- Right: Event Log -->
+    <div class="flex flex-col min-w-0 border-l border-stone-700 overflow-y-auto max-lg:border-l-0 max-lg:border-t col-span-3">
+      <EventLog events={telemetry.events} {hoveredBatchId} />
     </div>
   </div>
 </div>

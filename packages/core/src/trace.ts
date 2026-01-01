@@ -1,8 +1,5 @@
 import type { TraceEvent, TraceEventData, TraceHandler } from './types';
 
-/**
- * Create a trace emitter for a batcher.
- */
 export function createTracer<K>(
   name: string | undefined,
   handler: TraceHandler<K> | undefined,

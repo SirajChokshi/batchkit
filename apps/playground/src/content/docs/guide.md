@@ -1,0 +1,195 @@
+---
+title: Getting Started
+description: How batchkit works
+order: 1
+---
+
+# batchkit
+
+Automatic batching for async operations.
+
+```bash
+npm install batchkit
+```
+
+```typescript
+import { batch } from 'batchkit'
+
+const users = batch(
+  (ids) => db.users.findMany({ where: { id: { in: ids } } }),
+  'id'
+)
+
+// All calls in the same tick become one db query
+await Promise.all([
+  users.get(1),
+  users.get(2),
+  users.get(3),
+])
+```
+
+[Try it in the playground →](/)
+
+## Creating a Batcher
+
+```typescript
+const users = batch(fn, match, options?)
+```
+
+**`fn`** is your batch function. It receives an array of keys and should return the corresponding results:
+
+```typescript
+const users = batch(
+  async (ids: number[]) => {
+    return db.users.findMany({ where: { id: { in: ids } } })
+  },
+  'id'
+)
+```
+
+The function also receives an `AbortSignal` as a second argument, which you can pass to fetch or other cancellable APIs:
+
+```typescript
+const users = batch(
+  async (ids, signal) => {
+    return fetch(`/api/users?ids=${ids}`, { signal }).then(r => r.json())
+  },
+  'id'
+)
+```
+
+## Matching Results
+
+**`match`** tells batchkit how to connect each result back to the key that requested it.
+
+### By field name
+
+The most common case. If your results have an `id` field:
+
+```typescript
+batch(fn, 'id')
+```
+
+batchkit finds the result where `result.id === requestedKey`.
+
+### By index (object responses)
+
+When your API returns an object keyed by ID:
+
+```json
+{ "1": { "name": "Alice" }, "2": { "name": "Bob" } }
+```
+
+Use `indexed`:
+
+```typescript
+import { batch, indexed } from 'batchkit'
+
+batch(fn, indexed)
+```
+
+### Custom matching
+
+For complex cases, pass a function:
+
+```typescript
+batch(fn, (results, key) => {
+  return results.find(r => r.externalId === key.id)
+})
+```
+
+## How Batching Works
+
+When you call `.get()`, the request is queued. At the end of the current microtask, all queued requests are dispatched together.
+
+```typescript
+// These three calls...
+users.get(1)
+users.get(2)
+users.get(3)
+
+// ...become one call to your batch function:
+fn([1, 2, 3], signal)
+```
+
+Duplicate keys within the same batch are automatically deduplicated. If you call `users.get(1)` twice, the key `1` is only fetched once, but both promises resolve to the same value.
+
+## Timing Control
+
+### Delay dispatching
+
+By default, batches dispatch immediately (next microtask). Use `wait` to collect requests over a time window:
+
+```typescript
+batch(fn, 'id', { wait: 50 })  // Wait 50ms before dispatching
+```
+
+This is useful when requests arrive over time (user scrolling, animations) rather than all at once.
+
+### Custom schedulers
+
+For advanced control:
+
+```typescript
+import { batch, onAnimationFrame, onIdle } from 'batchkit'
+
+// Sync with browser rendering
+batch(fn, 'id', { schedule: onAnimationFrame })
+
+// Low-priority background work
+batch(fn, 'id', { schedule: onIdle({ timeout: 100 }) })
+```
+
+## Batch Size Limits
+
+Some APIs limit how many items you can request at once. Use `max` to split large batches:
+
+```typescript
+batch(fn, 'id', { max: 100 })
+```
+
+If 250 keys are queued, batchkit makes three calls: 100, 100, then 50.
+
+## Cancellation
+
+### Cancel everything
+
+```typescript
+users.abort()
+```
+
+All pending requests reject with an `AbortError`. The signal passed to your batch function is also aborted.
+
+### Cancel one request
+
+Pass an `AbortSignal` to `.get()`:
+
+```typescript
+const controller = new AbortController()
+const promise = users.get(1, { signal: controller.signal })
+
+controller.abort()  // This request rejects, others continue
+```
+
+If all requests in a batch are aborted, the underlying fetch is aborted too.
+
+### Force dispatch
+
+Skip the scheduler and dispatch immediately:
+
+```typescript
+users.flush()
+```
+
+## Debugging
+
+Name your batchers and add tracing:
+
+```typescript
+const users = batch(fn, 'id', {
+  name: 'users',
+  trace: (event) => console.log(event.type, event)
+})
+```
+
+Events: `get`, `dedup`, `schedule`, `dispatch`, `resolve`, `error`, `abort`

@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+@theme {
+  --font-mono: 'Google Sans Code', monospace;
+  --text-xs: 11px;
+  --text-sm: 13px;
+}
+
+/* Docs prose styles */
+.prose-docs {
+  @apply text-stone-300;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.prose-docs h1 {
+  @apply text-stone-50;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.prose-docs h2 {
+  @apply text-stone-50 border-b border-stone-700;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+}
+
+.prose-docs h3 {
+  @apply text-stone-200;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose-docs p {
+  margin-bottom: 1rem;
+}
+
+.prose-docs a {
+  @apply text-stone-400 hover:text-stone-50;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose-docs a:focus-visible {
+  @apply bg-yellow-500 text-stone-900 no-underline;
+  outline: none;
+}
+
+/* Inline code */
+.prose-docs :not(pre) > code {
+  @apply bg-stone-800 text-stone-200;
+  padding: 0.2rem 0.2rem;
+  font-size: 0.875em;
+}
+
+/* Code blocks - override Shiki inline styles */
+.prose-docs pre {
+  background-color: theme(--color-stone-900) !important;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.prose-docs pre:focus-within {
+  outline: none;
+}
+
+.prose-docs pre code {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  font-size: inherit !important;
+  color: inherit;
+}
+
+.prose-docs ul,
+.prose-docs ol {
+  margin-bottom: 1rem;
+  padding-left: 1.25rem;
+}
+
+.prose-docs li {
+  margin-bottom: 0.25rem;
+}
+
+.prose-docs strong {
+  @apply text-stone-50;
+  font-weight: 500;
+}
+
+.prose-docs table {
+  @apply w-full border-collapse text-sm;
+  margin-bottom: 1rem;
+}
+
+.prose-docs th,
+.prose-docs td {
+  @apply border border-stone-700 px-3 py-2 text-left;
+}
+
+.prose-docs th {
+  @apply bg-stone-800 text-stone-200 font-medium;
+}
+
+.prose-docs td {
+  @apply bg-stone-900 text-stone-300;
+}
+

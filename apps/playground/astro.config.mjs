@@ -8,6 +8,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   integrations: [svelte()],
+  markdown: {
+    shikiConfig: {
+      theme: 'vitesse-dark',
+      wrap: true,
+    },
+  },
   vite: {
     plugins: [tailwindcss()],
     resolve: {
