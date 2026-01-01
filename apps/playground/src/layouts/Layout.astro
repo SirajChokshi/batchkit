@@ -24,8 +24,8 @@ const isDocs = currentPath.startsWith('/docs');
   </head>
   <body class="min-h-screen">
     <header class="sticky top-0 z-50 bg-stone-950">
-      <div class="mx-auto max-w-7xl flex items-center gap-5 h-12 border-b border-stone-700">
-        <a href="/" class="text-sm font-medium text-stone-100 font-mono hover:bg-stone-100 hover:text-stone-900">[=] batchkit</a>
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 xl:px-0 flex items-center gap-5 h-12 border-b border-stone-700">
+        <span class="text-sm select-none font-medium text-stone-100 font-mono">[=] batchkit</span>
         <span class="text-stone-700">|</span>
         <nav class="flex items-center gap-4">
           <a href="/" class:list={["text-sm font-mono", isPlayground ? "text-stone-100" : "text-stone-500 hover:bg-stone-100 hover:text-stone-900"]}>playground</a>
@@ -33,7 +33,7 @@ const isDocs = currentPath.startsWith('/docs');
         </nav>
       </div>
     </header>
-    <main class="mx-auto max-w-7xl">
+    <main class="mx-auto max-w-7xl px-4 sm:px-6 xl:px-0">
       <slot />
     </main>
   </body>
