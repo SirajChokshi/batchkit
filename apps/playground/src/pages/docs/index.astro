@@ -1,0 +1,16 @@
+---
+import { getCollection } from 'astro:content';
+
+const docs = await getCollection('docs');
+const sorted = docs.sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0));
+
+if (sorted.length > 0) {
+  return Astro.redirect(`/docs/${sorted[0].id}`);
+}
+---
+
+<html>
+  <body>
+    <p>No docs found</p>
+  </body>
+</html>

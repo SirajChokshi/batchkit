@@ -1,19 +1,25 @@
-import { defineConfig } from 'astro/config';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import { defineConfig } from 'astro/config';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   integrations: [svelte()],
+  markdown: {
+    shikiConfig: {
+      theme: 'vitesse-dark',
+      wrap: true,
+    },
+  },
   vite: {
     plugins: [tailwindcss()],
     resolve: {
       alias: {
         // Resolve batchkit to the source files directly
-        'batchkit': resolve(__dirname, '../../packages/core/src/index.ts'),
+        batchkit: resolve(__dirname, '../../packages/core/src/index.ts'),
       },
     },
     optimizeDeps: {
@@ -21,4 +27,3 @@ export default defineConfig({
     },
   },
 });
-

@@ -10,11 +10,11 @@
   },
   "dependencies": {
     "@astrojs/svelte": "^7.0.0",
-    "@tailwindcss/vite": "4.1.18",
+    "@tailwindcss/vite": "^4.1.18",
     "astro": "^5.0.0",
     "batchkit": "workspace:*",
     "svelte": "^5.0.0",
-    "tailwindcss": "4.1.18"
+    "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

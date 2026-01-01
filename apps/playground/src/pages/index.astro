@@ -1,11 +1,9 @@
 ---
-import Layout from '../layouts/Layout.astro';
 import Playground from '../components/Playground.svelte';
+import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="Batchkit Playground">
-  <main class="min-h-screen p-6 max-w-[1400px] mx-auto">
-    <Playground client:load />
-  </main>
+  <Playground client:load />
 </Layout>
 

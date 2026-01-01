@@ -1,16 +1,8 @@
-// Main function
-export { batch } from './batch'
+export { batch } from './batch';
+export { BatchError } from './errors';
+export { indexed } from './indexed';
+export { onAnimationFrame, onIdle } from './schedulers';
 
-// Match helper for Record responses
-export { indexed } from './indexed'
-
-// Schedulers
-export { onAnimationFrame, onIdle } from './schedulers'
-
-// Error class
-export { BatchError } from './errors'
-
-// Types
 export type {
   Batcher,
   BatchFn,
@@ -21,4 +13,4 @@ export type {
   Scheduler,
   TraceEvent,
   TraceHandler,
-} from './types'
+} from './types';
