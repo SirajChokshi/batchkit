@@ -97,36 +97,29 @@ const products = batch(
 )
 
 // Requesting 200 products makes 4 sequential API calls
-const products = await batcher.get(allProductIds)
+const items = await products.get(allProductIds)
 ```
 
 ## Caching Layer
 
-batchkit handles batching only. For caching, integrate with your data layer:
+batchkit handles batching only. For caching, use React Query or SWR:
 
 ```typescript
-const cache = new Map<string, User>()
+const users = batch(
+  (ids, signal) => fetch(`/api/users?ids=${ids}`, { signal }).then(r => r.json()),
+  'id'
+)
 
-const users = batch(async (ids) => {
-  // Find which IDs aren't cached
-  const uncached = ids.filter(id => !cache.has(id))
-  
-  // Fetch missing items
-  if (uncached.length > 0) {
-    const fetched = await prisma.user.findMany({
-      where: { id: { in: uncached } }
-    })
-    for (const user of fetched) {
-      cache.set(user.id, user)
-    }
-  }
-  
-  // Return all items in request order
-  return ids.map(id => cache.get(id)!)
-}, 'id')
+function useUser(id: string) {
+  return useQuery({
+    queryKey: ['user', id],
+    queryFn: ({ signal }) => users.get(id, { signal }),
+    staleTime: 5 * 60 * 1000,
+  })
+}
 ```
 
-Or use React Query/SWR which handle caching automatically—batchkit just handles the batching layer.
+React Query caches results. batchkit batches requests. They compose naturally.
 
 ## Object Responses
 

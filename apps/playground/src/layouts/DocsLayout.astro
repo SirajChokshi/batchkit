@@ -14,9 +14,9 @@ const currentPath = Astro.url.pathname;
 ---
 
 <Layout title={`${title} - batchkit`}>
-  <div class="docs-layout">
-    <!-- Left sidebar -->
-    <aside class="docs-left">
+  <div class="pt-6 relative">
+    <!-- Left sidebar - hidden on mobile, shown on lg+ -->
+    <aside class="hidden lg:block fixed top-12 left-[max(0px,calc((100vw-80rem)/2))] w-56 h-[calc(100vh-3rem)] py-6 pr-8 overflow-y-auto">
       <div class="text-stone-400 text-xs tracking-widest pl-4 mb-3 uppercase font-mono">Pages</div>
       <nav class="flex flex-col gap-0.5">
         {sorted.map((doc) => (
@@ -33,53 +33,29 @@ const currentPath = Astro.url.pathname;
       </nav>
     </aside>
 
+    <!-- Mobile navigation - shown only on mobile -->
+    <nav class="lg:hidden flex flex-wrap gap-2 mb-6 pb-4 border-b border-stone-700">
+      {sorted.map((doc) => (
+        <a
+          href={`/docs/${doc.id}`}
+          class:list={[
+            "text-sm font-mono px-3 py-1.5",
+            currentPath.includes(doc.id) ? "text-stone-100 bg-stone-800" : "text-stone-500 hover:bg-stone-50 hover:text-stone-950"
+          ]}
+        >
+          {doc.data.title}
+        </a>
+      ))}
+    </nav>
+
     <!-- Main content -->
-    <article class="prose-docs docs-main">
+    <article class="prose-docs lg:ml-56 lg:pl-8 xl:mr-56 xl:pr-4 pb-32">
       <slot />
     </article>
 
-    <!-- Right sidebar -->
-    <aside class="docs-right">
+    <!-- Right sidebar - hidden on mobile and tablet, shown on xl+ -->
+    <aside class="hidden xl:block fixed top-12 right-[max(0px,calc((100vw-80rem)/2))] w-56 h-[calc(100vh-3rem)] py-6 pl-4 overflow-y-auto">
       <TableOfContents client:load />
     </aside>
   </div>
 </Layout>
-
-<style>
-  .docs-layout {
-    --header-h: 3rem;
-    --left-w: 14rem;
-    --right-w: 14rem;
-    --gap: 2rem;
-    display: flex;
-    padding-top: 1.5rem;
-  }
-
-  .docs-left,
-  .docs-right {
-    position: fixed;
-    top: var(--header-h);
-    height: calc(100vh - var(--header-h));
-    padding-block: 1.5rem;
-    overflow-y: auto;
-  }
-
-  .docs-left {
-    left: max(0px, calc((100vw - 80rem) / 2));
-    width: var(--left-w);
-    padding-right: var(--gap);
-  }
-
-  .docs-right {
-    right: max(0px, calc((100vw - 80rem) / 2));
-    width: var(--right-w);
-    padding-left: 1rem;
-  }
-
-  .docs-main {
-    flex: 1;
-    margin-left: calc(var(--left-w) + var(--gap));
-    margin-right: calc(var(--right-w) + var(--gap));
-    padding: 1.5rem 2rem 8rem;
-  }
-</style>
