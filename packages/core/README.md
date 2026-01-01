@@ -1,6 +1,6 @@
 # batchkit
 
-Automatic batching for async operations.
+Tiny batching library. Supports various scheduling and deduplication strategies.
 
 ## Installation
 
@@ -20,16 +20,12 @@ const users = batch(
   'id'
 )
 
-// These calls are automatically batched into ONE database query
+// These calls are batched into one database query
 const [alice, bob] = await Promise.all([
   users.get(1),
   users.get(2),
 ])
 ```
-
-That's it. Two arguments:
-1. A function that fetches many items at once
-2. The field to match results by
 
 ## API
 
@@ -140,7 +136,7 @@ Batches all calls within the same event loop tick:
 ```typescript
 const users = batch(fn, 'id')
 
-// All batched into ONE request
+// these synchronous invocations are batched into one request
 users.get(1)
 users.get(2)
 users.get(3)
@@ -231,7 +227,7 @@ function UserAvatar({ userId }: { userId: string }) {
   return <img src={data?.avatar} />
 }
 
-// Rendering 100 UserAvatars = 1 HTTP request
+// Rendering 100 UserAvatars from a service -> 1 HTTP request
 ```
 
 ### API with Rate Limits
@@ -248,7 +244,7 @@ const products = batch(
 
 ## TypeScript
 
-Full type inference:
+Correctly infers types based on call site
 
 ```typescript
 type User = { id: number; name: string }
