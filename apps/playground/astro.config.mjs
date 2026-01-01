@@ -8,6 +8,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   integrations: [svelte()],
+  redirects: {
+    '/docs': '/docs/guide',
+  },
   markdown: {
     shikiConfig: {
       theme: 'vitesse-dark',
