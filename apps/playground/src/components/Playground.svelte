@@ -1,27 +1,21 @@
 <script lang="ts">
 import type { Batcher, Scheduler } from 'batchkit';
 import { batch, onAnimationFrame, onIdle } from 'batchkit';
-import { createTelemetryState } from '../lib/useBatcherTelemetry.svelte';
+import { BatchkitDevtools } from 'batchkit-devtools-svelte';
 import ConfigPanel from './ConfigPanel.svelte';
 import Controls from './Controls.svelte';
-import EventLog from './EventLog.svelte';
-import Timeline from './Timeline.svelte';
+import CodePreview from './CodePreview.svelte';
+import Presets from './Presets.svelte';
 
 // Configuration state
-let schedulerType: 'microtask' | 'window' | 'animationFrame' | 'idle' | 'manual' = $state('microtask');
-let windowDelay = $state(10);
-let maxBatchSize = $state(0); // 0 = unlimited
+let schedulerType: 'microtask' | 'window' | 'animationFrame' | 'idle' = $state('microtask');
+let windowDelay = $state(50);
+let maxBatchSize = $state(0);
 let resolverDelay = $state(50);
-
-// Telemetry state
-const telemetry = createTelemetryState();
 
 // Current batcher instance
 let batcher: Batcher<string, { id: string; value: string }> | null = $state(null);
 let keyCounter = $state(0);
-
-// Hover state for cross-highlighting
-let hoveredBatchId: string | null = $state(null);
 
 // Simulated database
 const database = new Map<string, string>();
@@ -31,10 +25,6 @@ for (let i = 1; i <= 100; i++) {
 
 // Create/recreate batcher when config changes
 function createNewBatcher() {
-  // Clear previous state
-  telemetry.clear();
-
-  // Determine scheduler
   let schedule: Scheduler | undefined;
   let wait: number | undefined;
 
@@ -45,12 +35,9 @@ function createNewBatcher() {
   } else if (schedulerType === 'idle') {
     schedule = onIdle({ timeout: 100 });
   }
-  // For 'microtask', leave both undefined (default)
-  // For 'manual', we'll handle flush manually
 
   const newBatcher = batch<string, { id: string; value: string }>(
     async (keys, _signal) => {
-      // Simulate async work
       await new Promise((r) => setTimeout(r, resolverDelay));
       return keys.map((key) => ({
         id: key,
@@ -62,18 +49,17 @@ function createNewBatcher() {
       wait,
       schedule,
       max: maxBatchSize > 0 ? maxBatchSize : undefined,
-      name: 'playground',
-      trace: telemetry.createTraceHandler(),
+      name: 'custom',
     },
   );
 
   batcher = newBatcher;
 }
 
-// Initialize batcher on mount
-$effect(() => {
+// Initialize batcher on client-side only
+if (typeof window !== 'undefined') {
   createNewBatcher();
-});
+}
 
 // Handlers for controls
 function handleLoadKey() {
@@ -110,8 +96,10 @@ function handleFlush() {
   batcher.flush();
 }
 
-function handleClearTimeline() {
-  telemetry.clear();
+function handleClear() {
+  if (typeof window !== 'undefined' && window.__BATCHKIT_DEVTOOLS__) {
+    window.__BATCHKIT_DEVTOOLS__.clear();
+  }
 }
 
 function handleConfigChange() {
@@ -120,40 +108,42 @@ function handleConfigChange() {
 </script>
 
 <div class="flex flex-col h-full min-h-0 mt-4 border border-stone-700">
-  <!-- Main 3-column layout -->
   <div class="flex-1 grid grid-cols-12 max-lg:grid-cols-1 min-h-0 h-full">
-    <!-- Left: Controls -->
-    <div class="flex flex-col border-r border-stone-700 overflow-y-auto max-lg:border-r-0 max-lg:border-b col-span-3">
-      <ConfigPanel
-        bind:schedulerType
-        bind:windowDelay
-        bind:maxBatchSize
-        bind:resolverDelay
-        onConfigChange={handleConfigChange}
-      />
-      <Controls
-        {schedulerType}
-        onLoadKey={handleLoadKey}
-        onLoadRandom={handleLoadRandom}
-        onLoadDuplicate={handleLoadDuplicate}
-        onBurst={handleBurst}
-        onFlush={handleFlush}
-        onClear={handleClearTimeline}
-      />
+    <!-- Left: Custom Batcher Config + Controls + Code Preview -->
+    <div class="flex flex-col border-r border-stone-700 max-lg:border-r-0 max-lg:border-b col-span-4 min-h-0">
+      <div class="flex-shrink-0">
+        <ConfigPanel
+          bind:schedulerType
+          bind:windowDelay
+          bind:maxBatchSize
+          bind:resolverDelay
+          onConfigChange={handleConfigChange}
+        />
+        <Controls
+          {schedulerType}
+          onLoadKey={handleLoadKey}
+          onLoadRandom={handleLoadRandom}
+          onLoadDuplicate={handleLoadDuplicate}
+          onBurst={handleBurst}
+          onFlush={handleFlush}
+          onClear={handleClear}
+        />
+      </div>
+      <div class="flex-1 min-h-0 overflow-y-auto">
+        <CodePreview
+          {schedulerType}
+          {windowDelay}
+          {maxBatchSize}
+          {resolverDelay}
+        />
+      </div>
     </div>
 
-    <!-- Center: Batching Demo -->
-    <div class="flex flex-col min-w-0 overflow-y-auto col-span-6">
-      <Timeline
-        events={telemetry.events} 
-        batches={telemetry.batches}
-        onHoverBatch={(id) => hoveredBatchId = id}
-      />
-    </div>
-
-    <!-- Right: Event Log -->
-    <div class="flex flex-col min-w-0 border-l border-stone-700 overflow-y-auto max-lg:border-l-0 max-lg:border-t col-span-3">
-      <EventLog events={telemetry.events} {hoveredBatchId} />
+    <!-- Right: Presets -->
+    <div class="flex flex-col min-w-0 overflow-hidden col-span-8">
+      <Presets />
     </div>
   </div>
 </div>
+
+<BatchkitDevtools />

@@ -1,0 +1,48 @@
+{
+  "name": "batchkit-devtools",
+  "version": "0.1.0",
+  "description": "DevTools panel for BatchKit - visualize batchers, batches, and invocations",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./dist/index.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "dev": "vite build --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "batchkit",
+    "devtools",
+    "debugging"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "batchkit": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "batchkit": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "solid-js": "^1.9.5"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "typescript": "5.3.3",
+    "vite": "^6.3.5",
+    "vite-plugin-solid": "^2.11.6"
+  }
+}
+
