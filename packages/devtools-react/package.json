@@ -1,0 +1,42 @@
+{
+  "name": "batchkit-devtools-react",
+  "version": "0.1.0",
+  "description": "React wrapper for BatchKit DevTools",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "batchkit",
+    "devtools",
+    "react"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "batchkit-devtools": ">=0.1.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "batchkit-devtools": "workspace:*",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "typescript": "5.3.3"
+  }
+}
+

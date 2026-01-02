@@ -1,0 +1,42 @@
+{
+  "name": "batchkit-devtools-svelte",
+  "version": "0.1.0",
+  "description": "Svelte wrapper for BatchKit DevTools",
+  "type": "module",
+  "svelte": "./dist/index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "svelte-package -i src -o dist",
+    "typecheck": "svelte-check"
+  },
+  "keywords": [
+    "batchkit",
+    "devtools",
+    "svelte"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "batchkit-devtools": ">=0.1.0",
+    "svelte": ">=5.0.0"
+  },
+  "devDependencies": {
+    "@sveltejs/package": "^2.3.0",
+    "batchkit-devtools": "workspace:*",
+    "svelte": "^5.0.0",
+    "svelte-check": "^4.0.0",
+    "typescript": "5.3.3"
+  }
+}
+

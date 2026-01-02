@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "test": "bun test",
-    "build": "bun run --filter '*' build",
+    "build": "bun run --filter batchkit build && bun run --filter batchkit-devtools build && bun run --filter batchkit-devtools-react --filter batchkit-devtools-svelte build && bun run --filter playground build",
     "dev": "bun run --filter playground dev",
     "lint": "biome check .",
     "lint:fix": "biome check --write ."
