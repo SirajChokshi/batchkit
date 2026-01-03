@@ -1,7 +1,7 @@
 import { createRoot, createSignal } from 'solid-js';
 import type {
-  BatchInfo,
   BatcherInfo,
+  BatchInfo,
   DevtoolsRegistry,
   DevtoolsStore,
   TraceEvent,

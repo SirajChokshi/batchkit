@@ -1,11 +1,11 @@
-export { mount } from './mount';
-export type { MountOptions } from './mount';
 export { getRegistry, useStore } from './core/registry';
 export type {
-  DevtoolsRegistry,
-  DevtoolsStore,
   BatcherInfo,
   BatchInfo,
+  DevtoolsRegistry,
+  DevtoolsStore,
   TraceEvent,
   TraceEventType,
 } from './core/types';
+export type { MountOptions } from './mount';
+export { mount } from './mount';
