@@ -1,6 +1,6 @@
 {
   "name": "batchkit",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "A modern TypeScript library for batching async operations",
   "type": "module",
   "main": "./dist/index.js",

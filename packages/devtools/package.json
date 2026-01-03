@@ -1,6 +1,6 @@
 {
   "name": "batchkit-devtools",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "DevTools panel for BatchKit - visualize batchers, batches, and invocations",
   "type": "module",
   "main": "./dist/index.js",
@@ -28,7 +28,7 @@
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "batchkit": ">=0.1.0"
+    "batchkit": "*"
   },
   "peerDependenciesMeta": {
     "batchkit": {

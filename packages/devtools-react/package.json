@@ -1,6 +1,6 @@
 {
   "name": "batchkit-devtools-react",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "React wrapper for BatchKit DevTools",
   "type": "module",
   "module": "./dist/index.js",
@@ -28,7 +28,7 @@
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "batchkit-devtools": ">=0.1.0",
+    "batchkit-devtools": "*",
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0"
   },
