@@ -104,11 +104,13 @@ export function batch<K, V>(
 
       const cacheKey = keyFn(request.key);
 
-      if (!keyToRequests.has(cacheKey)) {
-        keyToRequests.set(cacheKey, []);
+      let requests = keyToRequests.get(cacheKey);
+      if (!requests) {
+        requests = [];
+        keyToRequests.set(cacheKey, requests);
         uniqueKeys.push(request.key);
       }
-      keyToRequests.get(cacheKey)!.push(request);
+      requests.push(request);
     }
 
     if (uniqueKeys.length === 0) return;
@@ -144,7 +146,8 @@ export function batch<K, V>(
         const recordResults = results as Record<string, V>;
         for (const key of uniqueKeys) {
           const cacheKey = keyFn(key);
-          const requests = keyToRequests.get(cacheKey)!;
+          const requests = keyToRequests.get(cacheKey);
+          if (!requests) continue;
           const value = indexedMatcher(recordResults, key);
 
           for (const request of requests) {
@@ -169,7 +172,8 @@ export function batch<K, V>(
 
         for (const key of uniqueKeys) {
           const cacheKey = keyFn(key);
-          const requests = keyToRequests.get(cacheKey)!;
+          const requests = keyToRequests.get(cacheKey);
+          if (!requests) continue;
           const value = matchFn(arrayResults, key);
 
           for (const request of requests) {

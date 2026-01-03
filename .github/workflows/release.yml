@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js (for npm publish)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Update package versions
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          
+          # Update all package.json files with the new version
+          for pkg in packages/core packages/devtools packages/devtools-react packages/devtools-svelte; do
+            jq --arg v "$VERSION" '.version = $v' "$pkg/package.json" > "$pkg/package.json.tmp"
+            mv "$pkg/package.json.tmp" "$pkg/package.json"
+          done
+          
+          # Also update peer dependency versions for devtools packages
+          for pkg in packages/devtools-react packages/devtools-svelte; do
+            jq --arg v ">=$VERSION" '.peerDependencies["batchkit-devtools"] = $v' "$pkg/package.json" > "$pkg/package.json.tmp"
+            mv "$pkg/package.json.tmp" "$pkg/package.json"
+          done
+          
+          jq --arg v ">=$VERSION" '.peerDependencies.batchkit = $v' "packages/devtools/package.json" > "packages/devtools/package.json.tmp"
+          mv "packages/devtools/package.json.tmp" "packages/devtools/package.json"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build all packages
+        run: bun run build
+
+      - name: Run tests
+        run: bun test
+
+      - name: Publish batchkit (core)
+        run: npm publish --access public
+        working-directory: packages/core
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish batchkit-devtools
+        run: npm publish --access public
+        working-directory: packages/devtools
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish batchkit-devtools-react
+        run: npm publish --access public
+        working-directory: packages/devtools-react
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish batchkit-devtools-svelte
+        run: npm publish --access public
+        working-directory: packages/devtools-svelte
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

@@ -1,5 +1,5 @@
 import { render } from 'solid-js/web';
-import { Panel, PanelProps } from './components/Panel';
+import { Panel, type PanelProps } from './components/Panel';
 import { getRegistry } from './core/registry';
 
 export interface MountOptions {

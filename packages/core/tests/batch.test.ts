@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { BatchError, batch, indexed } from '../src';
+import { BatchError, batch, indexed, type TraceEvent } from '../src';
 
 describe('batch', () => {
   describe('basic functionality', () => {
@@ -388,7 +388,7 @@ describe('batch', () => {
 
   describe('tracing', () => {
     it('should emit trace events', async () => {
-      const events: unknown[] = [];
+      const events: TraceEvent<string>[] = [];
 
       const items = batch(
         async (keys: string[]) => keys.map((k) => ({ id: k })),
@@ -401,7 +401,7 @@ describe('batch', () => {
 
       await items.get('a');
 
-      const types = events.map((e: any) => e.type);
+      const types = events.map((e) => e.type);
       expect(types).toContain('get');
       expect(types).toContain('schedule');
       expect(types).toContain('dispatch');
