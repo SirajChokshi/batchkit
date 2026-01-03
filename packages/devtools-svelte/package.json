@@ -1,6 +1,6 @@
 {
   "name": "batchkit-devtools-svelte",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Svelte wrapper for BatchKit DevTools",
   "type": "module",
   "svelte": "./dist/index.js",
@@ -30,7 +30,7 @@
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "batchkit-devtools": ">=0.1.0",
+    "batchkit-devtools": "*",
     "svelte": ">=5.0.0"
   },
   "devDependencies": {
