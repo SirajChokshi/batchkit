@@ -121,3 +121,28 @@ const products = batch(
 // Requesting 200 products makes 4 sequential API calls
 const items = await products.get(allProductIds)
 ```
+
+## Wrapping Caches
+
+Wrap single-threaded caches (like Redis) to batch requests and save round-trips.
+
+```typescript
+import { batch, indexed } from 'batchkit'
+
+const getFlag = batch(async (names) => {
+  const values = await redis.mget(names.map(n => `flag:${n}`))
+  return Object.fromEntries(
+    names.map((name, i) => [name, values[i] === '1'])
+  )
+}, indexed)
+
+// Multiple checks → single MGET
+const [checkoutUpsell, freeShippingPromo] = await Promise.all([
+  getFlag.get('checkout_upsell'),
+  getFlag.get('free_shipping_promo')
+])
+
+if (checkoutUpsell) {
+  // route to interstitial page
+}
+```
