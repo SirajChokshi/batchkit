@@ -29,6 +29,11 @@
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SirajChokshi/batchkit.git",
+    "directory": "packages/devtools-svelte"
+  },
   "peerDependencies": {
     "batchkit-devtools": "*",
     "svelte": ">=5.0.0"
