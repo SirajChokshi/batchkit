@@ -10,7 +10,7 @@
   let isScrolling = false;
 
   $effect(() => {
-    const article = document.querySelector('.prose-docs');
+    const article = document.querySelector('.prose');
     if (!article) return;
 
     const elements = article.querySelectorAll('h2, h3');

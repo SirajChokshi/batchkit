@@ -1,5 +1,5 @@
 {
-  "name": "playground",
+  "name": "www",
   "type": "module",
   "version": "0.0.1",
   "private": true,
@@ -9,7 +9,9 @@
     "preview": "astro preview"
   },
   "dependencies": {
+    "@astrojs/mdx": "^4.3.0",
     "@astrojs/svelte": "^7.0.0",
+    "@tailwindcss/typography": "^0.5.16",
     "@tailwindcss/vite": "^4.1.18",
     "astro": "^5.0.0",
     "batchkit": "workspace:*",

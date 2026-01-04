@@ -1,0 +1,104 @@
+---
+import { Code } from 'astro:components';
+
+interface Tab {
+  id: string;
+  label: string;
+  code: string;
+  lang: string;
+}
+
+interface Props {
+  tabs: Tab[];
+}
+
+const { tabs } = Astro.props;
+const storageKey = 'batchkit-docs-pm';
+---
+
+<div class="code-tabs not-prose my-2 mb-4" data-storage-key={storageKey}>
+  <div class="flex border-b border-stone-700">
+    {tabs.map((tab, i) => (
+      <button
+        class="tab-btn px-4 py-2 text-sm bg-transparent border-none cursor-pointer relative text-stone-500 hover:text-stone-300"
+        data-tab={tab.id}
+        data-default={i === 0 ? 'true' : undefined}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+  <div class="tab-panels">
+    {tabs.map((tab) => (
+      <div class="tab-panel hidden" data-tab={tab.id}>
+        <Code code={tab.code} lang={tab.lang} theme="vitesse-dark" />
+      </div>
+    ))}
+  </div>
+</div>
+
+<style>
+  .tab-btn.active {
+    color: #fafaf9;
+  }
+  .tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #fafaf9;
+  }
+  .tab-panel.active {
+    display: block;
+  }
+</style>
+
+<script>
+  function initCodeTabs() {
+    document.querySelectorAll('.code-tabs').forEach((container) => {
+      const storageKey = container.getAttribute('data-storage-key');
+      const buttons = container.querySelectorAll('.tab-btn');
+      const panels = container.querySelectorAll('.tab-panel');
+      
+      if (!buttons.length) return;
+
+      const validIds = Array.from(buttons).map(b => b.getAttribute('data-tab'));
+      const stored = storageKey ? localStorage.getItem(storageKey) : null;
+      const defaultBtn = container.querySelector('.tab-btn[data-default]');
+      const initialTab = (stored && validIds.includes(stored)) ? stored : defaultBtn?.getAttribute('data-tab') || validIds[0];
+
+      function setActive(tabId: string, broadcast = true) {
+        if (!validIds.includes(tabId)) return;
+        buttons.forEach(btn => {
+          btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+        });
+        panels.forEach(panel => {
+          panel.classList.toggle('active', panel.getAttribute('data-tab') === tabId);
+        });
+        if (storageKey && broadcast) {
+          localStorage.setItem(storageKey, tabId);
+          window.dispatchEvent(new CustomEvent('codetabs-change', { detail: { key: storageKey, tabId } }));
+        }
+      }
+
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tabId = btn.getAttribute('data-tab');
+          if (tabId) setActive(tabId);
+        });
+      });
+
+      window.addEventListener('codetabs-change', (e: Event) => {
+        const { key, tabId } = (e as CustomEvent).detail;
+        if (key === storageKey) setActive(tabId, false);
+      });
+
+      if (initialTab) setActive(initialTab, false);
+    });
+  }
+
+  initCodeTabs();
+  document.addEventListener('astro:page-load', initCodeTabs);
+</script>

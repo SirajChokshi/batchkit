@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, spyOn } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
 import { BatchError, batch, indexed, type TraceEvent } from '../src';
 
 describe('batch', () => {
@@ -601,7 +601,8 @@ describe('batch', () => {
       await Promise.allSettled([promise1, promise2]);
 
       expect(capturedSignal).not.toBeNull();
-      expect(capturedSignal!.aborted).toBe(true);
+      // @ts-expect-error - capturedSignal is not typed
+      expect(capturedSignal?.aborted).toBe(true);
     });
 
     it('should not abort underlying fetch when only some requests are aborted', async () => {
@@ -627,7 +628,8 @@ describe('batch', () => {
       expect(result1.status).toBe('rejected');
       expect(result2.status).toBe('fulfilled');
       expect(capturedSignal).not.toBeNull();
-      expect(capturedSignal!.aborted).toBe(false);
+      // @ts-expect-error - capturedSignal is not typed
+      expect(capturedSignal?.aborted).toBe(false);
     });
   });
 

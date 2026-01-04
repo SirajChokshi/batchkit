@@ -2,7 +2,9 @@
   import { mount } from 'batchkit-devtools';
   import { onMount } from 'svelte';
 
-  interface Props {
+  export interface Props {
+    position?: 'right' | 'bottom' | 'left';
+    defaultOpen?: boolean;
     buttonClass?: string;
     buttonStyle?: Record<string, string>;
     panelClass?: string;
@@ -10,6 +12,8 @@
   }
 
   let { 
+    position,
+    defaultOpen,
     buttonClass,
     buttonStyle,
     panelClass,
@@ -22,6 +26,8 @@
     if (!container) return;
     
     const dispose = mount(container, {
+      position,
+      defaultOpen,
       buttonClass,
       buttonStyle,
       panelClass,
@@ -34,8 +40,4 @@
   });
 </script>
 
-<div
-  bind:this={container}
-  data-batchkit-devtools
-></div>
-
+<div bind:this={container} data-batchkit-devtools></div>

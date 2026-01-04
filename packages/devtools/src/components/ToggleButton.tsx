@@ -45,21 +45,7 @@ export const ToggleButton: Component<ToggleButtonProps> = (props) => {
       title={props.isOpen ? 'Close BatchKit DevTools' : 'Open BatchKit DevTools'}
       aria-label={props.isOpen ? 'Close BatchKit DevTools' : 'Open BatchKit DevTools'}
     >
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M4 6h16M4 12h16M4 18h10"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="square"
-        />
-        <circle cx="19" cy="18" r="2.5" fill="currentColor" />
-      </svg>
+      {props.isOpen ? "[×]" : "[=]"}
     </button>
   );
 };

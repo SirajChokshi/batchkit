@@ -47,7 +47,7 @@ function handleChange() {
         type="range" 
         id="window-delay"
         min="5" 
-        max="200" 
+        max="90000" 
         step="5"
         bind:value={windowDelay}
         onchange={handleChange}
@@ -80,7 +80,7 @@ function handleChange() {
       type="range" 
       id="resolver-delay"
       min="0" 
-      max="500" 
+      max="89999" 
       step="10"
       bind:value={resolverDelay}
       onchange={handleChange}

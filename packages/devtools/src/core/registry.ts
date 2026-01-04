@@ -1,3 +1,8 @@
+import {
+  __setDevtoolsHook,
+  type TraceEvent as CoreTraceEvent,
+  type DevtoolsHook,
+} from 'batchkit';
 import { createRoot, createSignal } from 'solid-js';
 import type {
   BatcherInfo,
@@ -6,6 +11,30 @@ import type {
   DevtoolsStore,
   TraceEvent,
 } from './types';
+
+let unnamedCounter = 0;
+
+function parseLocation(stack: string | undefined): string | undefined {
+  if (!stack) return undefined;
+  const lines = stack.split('\n');
+  for (const line of lines) {
+    if (
+      line.includes('batch') &&
+      !line.includes('batchkit') &&
+      !line.includes('node_modules')
+    ) {
+      const match = line.match(/at\s+.*?\s+\(?(.*?:\d+:\d+)\)?$/);
+      if (match) return match[1];
+    }
+  }
+  for (const line of lines.slice(2)) {
+    if (!line.includes('batchkit') && !line.includes('node_modules')) {
+      const match = line.match(/at\s+.*?\s+\(?(.*?:\d+:\d+)\)?$/);
+      if (match) return match[1];
+    }
+  }
+  return undefined;
+}
 
 function createDevtoolsRegistry(): DevtoolsRegistry {
   const [store, setStore] = createSignal<DevtoolsStore>({
@@ -29,15 +58,6 @@ function createDevtoolsRegistry(): DevtoolsRegistry {
     setStore((prev) => {
       const newBatchers = new Map(prev.batchers);
       newBatchers.set(info.name, info);
-      return { ...prev, batchers: newBatchers };
-    });
-    notifyListeners();
-  }
-
-  function unregister(name: string): void {
-    setStore((prev) => {
-      const newBatchers = new Map(prev.batchers);
-      newBatchers.delete(name);
       return { ...prev, batchers: newBatchers };
     });
     notifyListeners();
@@ -135,28 +155,78 @@ function createDevtoolsRegistry(): DevtoolsRegistry {
     notifyListeners();
   }
 
+  function open(): void {
+    setStore((prev) => ({ ...prev, isOpen: true }));
+    notifyListeners();
+  }
+
+  function close(): void {
+    setStore((prev) => ({ ...prev, isOpen: false }));
+    notifyListeners();
+  }
+
+  function toggle(): void {
+    setStore((prev) => ({ ...prev, isOpen: !prev.isOpen }));
+    notifyListeners();
+  }
+
+  const hook: DevtoolsHook = {
+    onBatcherCreated({ fn, name, stack }) {
+      const isUnnamed = !name;
+      const batcherName = name ?? `unnamed-${++unnamedCounter}`;
+
+      const fnSource = fn.toString().slice(0, 500);
+      const location = parseLocation(stack);
+
+      register({
+        name: batcherName,
+        registeredAt: performance.now(),
+        isUnnamed,
+        fnSource,
+        location,
+      });
+
+      return (event: CoreTraceEvent) => {
+        emit(batcherName, event as Omit<TraceEvent, 'batcherName'>);
+      };
+    },
+  };
+
+  __setDevtoolsHook(hook);
+
   return {
-    register,
-    unregister,
-    emit,
     subscribe,
     getStore,
     clear,
+    open,
+    close,
+    toggle,
     _setStore: setStore,
     _store: store,
   };
 }
 
-export function getRegistry(): DevtoolsRegistry {
+let registryInstance: DevtoolsRegistry | null = null;
+
+export function initRegistry(): DevtoolsRegistry {
   if (typeof window === 'undefined') {
     throw new Error('DevTools can only be used in browser environment');
   }
 
-  if (!window.__BATCHKIT_DEVTOOLS__) {
-    window.__BATCHKIT_DEVTOOLS__ = createRoot(() => createDevtoolsRegistry());
+  if (!registryInstance) {
+    registryInstance = createRoot(() => createDevtoolsRegistry());
   }
 
-  return window.__BATCHKIT_DEVTOOLS__;
+  return registryInstance;
+}
+
+export function getRegistry(): DevtoolsRegistry {
+  if (!registryInstance) {
+    throw new Error(
+      'DevTools registry not initialized. Call initRegistry() first.',
+    );
+  }
+  return registryInstance;
 }
 
 export function useStore() {
@@ -173,20 +243,11 @@ export function useStore() {
   return localStore;
 }
 
-export function setOpen(isOpen: boolean) {
-  if (typeof window !== 'undefined' && window.__BATCHKIT_DEVTOOLS__) {
-    const registry = window.__BATCHKIT_DEVTOOLS__ as DevtoolsRegistry & {
-      _setStore?: (fn: (prev: DevtoolsStore) => DevtoolsStore) => void;
-    };
-    registry._setStore?.((prev) => ({ ...prev, isOpen }));
-  }
-}
-
 export function setSelectedBatcher(name: string | null) {
-  if (typeof window !== 'undefined' && window.__BATCHKIT_DEVTOOLS__) {
-    const registry = window.__BATCHKIT_DEVTOOLS__ as DevtoolsRegistry & {
-      _setStore?: (fn: (prev: DevtoolsStore) => DevtoolsStore) => void;
-    };
-    registry._setStore?.((prev) => ({ ...prev, selectedBatcher: name }));
+  if (registryInstance) {
+    registryInstance._setStore?.((prev) => ({
+      ...prev,
+      selectedBatcher: name,
+    }));
   }
 }

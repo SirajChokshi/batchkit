@@ -32,6 +32,12 @@ const nameStyle: JSX.CSSProperties = {
   'margin-bottom': '2px',
 };
 
+const unnamedStyle: JSX.CSSProperties = {
+  ...nameStyle,
+  color: '#78716c',
+  'font-style': 'italic',
+};
+
 const statsStyle: JSX.CSSProperties = {
   'font-size': '11px',
   color: '#78716c',
@@ -79,12 +85,15 @@ export const BatcherList: Component<BatcherListProps> = (props) => {
         {(batcher) => {
           const stats = () => getStats(batcher.name);
           const isSelected = () => props.selectedBatcher === batcher.name;
+
           return (
             <div
               style={isSelected() ? itemSelectedStyle : itemStyle}
               onClick={() => handleSelect(batcher.name)}
             >
-              <div style={nameStyle}>{batcher.name}</div>
+              <div style={batcher.isUnnamed ? unnamedStyle : nameStyle}>
+                {batcher.name}
+              </div>
               <div style={statsStyle}>
                 <span style={statStyle}>{stats().gets} gets</span>
                 <span style={statStyle}>{stats().batches} batches</span>
@@ -97,10 +106,10 @@ export const BatcherList: Component<BatcherListProps> = (props) => {
       {batcherArray().length === 0 && (
         <div style={emptyStyle}>
           <div style={{ 'font-size': '11px', color: '#78716c', 'margin-bottom': '4px' }}>
-            No batchers
+            No batchers yet
           </div>
           <div style={{ 'font-size': '11px', color: '#57534e' }}>
-            Create a batcher with a name
+            Call batch() to see it here
           </div>
         </div>
       )}

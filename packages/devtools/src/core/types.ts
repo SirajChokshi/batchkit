@@ -64,6 +64,9 @@ export type TraceEvent =
 export interface BatcherInfo {
   name: string;
   registeredAt: number;
+  isUnnamed?: boolean;
+  fnSource?: string;
+  location?: string;
 }
 
 export interface BatchInfo {
@@ -78,14 +81,6 @@ export interface BatchInfo {
   error?: Error;
 }
 
-export interface BatcherStats {
-  totalGets: number;
-  totalBatches: number;
-  dedupedKeys: number;
-  avgBatchSize: number;
-  avgDuration: number;
-}
-
 export interface DevtoolsStore {
   batchers: Map<string, BatcherInfo>;
   events: TraceEvent[];
@@ -95,18 +90,12 @@ export interface DevtoolsStore {
 }
 
 export interface DevtoolsRegistry {
-  register(info: BatcherInfo): void;
-  unregister(name: string): void;
-  emit(name: string, event: Omit<TraceEvent, 'batcherName'>): void;
   subscribe(listener: (store: DevtoolsStore) => void): () => void;
   getStore(): DevtoolsStore;
   clear(): void;
+  open(): void;
+  close(): void;
+  toggle(): void;
   _setStore?: (fn: (prev: DevtoolsStore) => DevtoolsStore) => void;
   _store?: () => DevtoolsStore;
-}
-
-declare global {
-  interface Window {
-    __BATCHKIT_DEVTOOLS__?: DevtoolsRegistry;
-  }
 }

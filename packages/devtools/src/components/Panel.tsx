@@ -1,37 +1,92 @@
-import { Component, createSignal, Show, JSX } from 'solid-js';
-import { getRegistry, useStore, setOpen, setSelectedBatcher } from '../core/registry';
+import { Component, createSignal, onMount, JSX } from 'solid-js';
+import { getRegistry, useStore, setSelectedBatcher } from '../core/registry';
 import { BatcherList } from './BatcherList';
 import { Timeline } from './Timeline';
 import { EventLog } from './EventLog';
 import { Stats } from './Stats';
+import { Trace } from './Trace';
 import { ToggleButton } from './ToggleButton';
 
-type TabId = 'timeline' | 'events' | 'stats';
+type TabId = 'timeline' | 'events' | 'stats' | 'trace';
+type Position = 'right' | 'bottom' | 'left';
 
 export interface PanelProps {
+  position?: Position;
+  defaultOpen?: boolean;
   buttonStyle?: JSX.CSSProperties;
   buttonClass?: string;
   panelStyle?: JSX.CSSProperties;
   panelClass?: string;
 }
 
-const panelBaseStyle: JSX.CSSProperties = {
+const DRAWER_WIDTH = '650px';
+const DRAWER_HEIGHT = '350px';
+const TRANSITION_DURATION = '0.2s';
+
+function getDrawerBaseStyle(position: Position): JSX.CSSProperties {
+  const base: JSX.CSSProperties = {
   position: 'fixed',
-  bottom: '72px',
-  right: '16px',
-  width: '640px',
-  'max-width': 'calc(100vw - 32px)',
-  height: '420px',
-  'max-height': 'calc(100vh - 120px)',
   background: '#0c0a09',
-  border: '1px solid #44403c',
+    'border-color': '#44403c',
+    'border-style': 'solid',
+    'border-width': '0',
   display: 'flex',
   'flex-direction': 'column',
   overflow: 'hidden',
   'z-index': '99998',
   'font-family': 'ui-monospace, monospace',
   color: '#d6d3d1',
-};
+    transition: `transform ${TRANSITION_DURATION} ease-out`,
+    'box-shadow': '0 0 10px 0 rgba(0, 0, 0, 0.1)',
+  };
+
+  switch (position) {
+    case 'right':
+      return {
+        ...base,
+        top: '0',
+        right: '0',
+        width: DRAWER_WIDTH,
+        height: '100vh',
+        'border-left-width': '1px',
+        'box-shadow': '0 0 10px 0 rgba(0, 0, 0, 0.1)',
+      };
+    case 'left':
+      return {
+        ...base,
+        top: '0',
+        left: '0',
+        width: DRAWER_WIDTH,
+        height: '100vh',
+        'border-right-width': '1px',
+        'box-shadow': '0 0 10px 0 rgba(0, 0, 0, 0.1)',
+      };
+    case 'bottom':
+      return {
+        ...base,
+        bottom: '0',
+        left: '0',
+        right: '0',
+        width: '100%',
+        height: DRAWER_HEIGHT,
+        'border-top-width': '1px',
+        'box-shadow': '0 0 10px 0 rgba(0, 0, 0, 0.1)',
+      };
+  }
+}
+
+function getTransform(position: Position, isOpen: boolean): string {
+  if (isOpen) return 'translate(0, 0)';
+
+  switch (position) {
+    case 'right':
+      return 'translateX(100%)';
+    case 'left':
+      return 'translateX(-100%)';
+    case 'bottom':
+      return 'translateY(100%)';
+  }
+}
 
 const headerStyle: JSX.CSSProperties = {
   display: 'flex',
@@ -40,6 +95,8 @@ const headerStyle: JSX.CSSProperties = {
   padding: '8px 12px',
   background: '#1c1917',
   'border-bottom': '1px solid #44403c',
+  'flex-shrink': '0',
+  'user-select': 'none',
 };
 
 const titleStyle: JSX.CSSProperties = {
@@ -70,11 +127,13 @@ const bodyStyle: JSX.CSSProperties = {
 };
 
 const sidebarStyle: JSX.CSSProperties = {
-  width: '180px',
+  width: '160px',
   'border-right': '1px solid #44403c',
   display: 'flex',
   'flex-direction': 'column',
   background: '#0c0a09',
+  'flex-shrink': '0',
+  'user-select': 'none',
 };
 
 const sidebarHeaderStyle: JSX.CSSProperties = {
@@ -98,6 +157,8 @@ const tabBarStyle: JSX.CSSProperties = {
   display: 'flex',
   'border-bottom': '1px solid #44403c',
   background: '#1c1917',
+  'flex-shrink': '0',
+  'user-select': 'none',
 };
 
 const tabStyle: JSX.CSSProperties = {
@@ -129,9 +190,16 @@ const contentAreaStyle: JSX.CSSProperties = {
 export const Panel: Component<PanelProps> = (props) => {
   const store = useStore();
   const [activeTab, setActiveTab] = createSignal<TabId>('timeline');
+  const position = () => props.position ?? 'right';
+
+  onMount(() => {
+    if (props.defaultOpen) {
+      getRegistry().open();
+    }
+  });
 
   const handleToggle = () => {
-    setOpen(!store().isOpen);
+    getRegistry().toggle();
   };
 
   const handleClear = () => {
@@ -155,6 +223,12 @@ export const Panel: Component<PanelProps> = (props) => {
     return Array.from(batches().values()).filter((b) => b.batcherName === selected);
   };
 
+  const drawerStyle = (): JSX.CSSProperties => ({
+    ...getDrawerBaseStyle(position()),
+    transform: getTransform(position(), store().isOpen),
+    ...props.panelStyle,
+  });
+
   return (
     <>
       <ToggleButton
@@ -164,8 +238,7 @@ export const Panel: Component<PanelProps> = (props) => {
         class={props.buttonClass}
       />
 
-      <Show when={store().isOpen}>
-        <div class={props.panelClass} style={{ ...panelBaseStyle, ...props.panelStyle }}>
+      <div class={props.panelClass} style={drawerStyle()}>
           <div style={headerStyle}>
             <div style={titleStyle}>
               <span style={{ color: '#78716c' }}>[=]</span>
@@ -207,23 +280,23 @@ export const Panel: Component<PanelProps> = (props) => {
                 >
                   Stats
                 </button>
+                <button
+                  style={activeTab() === 'trace' ? tabActiveStyle : tabStyle}
+                  onClick={() => setActiveTab('trace')}
+                >
+                  Trace
+                </button>
               </div>
 
               <div style={contentAreaStyle}>
-                <Show when={activeTab() === 'timeline'}>
-                  <Timeline batches={filteredBatches()} />
-                </Show>
-                <Show when={activeTab() === 'events'}>
-                  <EventLog events={filteredEvents()} />
-                </Show>
-                <Show when={activeTab() === 'stats'}>
-                  <Stats events={filteredEvents()} batches={filteredBatches()} />
-                </Show>
-              </div>
+              {activeTab() === 'timeline' && <Timeline batches={filteredBatches()} />}
+              {activeTab() === 'events' && <EventLog events={filteredEvents()} />}
+              {activeTab() === 'stats' && <Stats events={filteredEvents()} batches={filteredBatches()} />}
+              {activeTab() === 'trace' && <Trace batcher={selectedBatcher() ? batchers().get(selectedBatcher()!) ?? null : null} />}
             </div>
           </div>
         </div>
-      </Show>
+      </div>
     </>
   );
 };

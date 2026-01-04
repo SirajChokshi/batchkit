@@ -126,9 +126,11 @@ describe('schedulers', () => {
         expect(fn).toHaveBeenCalledTimes(1);
       } finally {
         if (originalRAF) globalThis.requestAnimationFrame = originalRAF;
-        else delete (globalThis as Record<string, unknown>).requestAnimationFrame;
+        else
+          delete (globalThis as Record<string, unknown>).requestAnimationFrame;
         if (originalCAF) globalThis.cancelAnimationFrame = originalCAF;
-        else delete (globalThis as Record<string, unknown>).cancelAnimationFrame;
+        else
+          delete (globalThis as Record<string, unknown>).cancelAnimationFrame;
       }
     });
   });
