@@ -106,11 +106,6 @@ function handleConfigChange() {
 </script>
 
 <div class="flex flex-col h-full min-h-0 mt-4 border border-stone-700">
-  <!-- <img
-    src="https://images.unsplash.com/photo-1635776062043-223faf322554?q=80&w=4032&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-    alt="Batchkit DevTools"
-    class="w-full h-full object-cover z-100 fixed inset-0"
-  /> -->
   <div class="flex-1 grid grid-cols-12 max-lg:grid-cols-1 min-h-0 h-full">
     <!-- Left: Custom Batcher Config + Controls + Code Preview -->
     <div class="flex flex-col border-r border-stone-700 max-lg:border-r-0 max-lg:border-b col-span-4 min-h-0">
