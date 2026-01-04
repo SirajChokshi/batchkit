@@ -85,27 +85,9 @@ function UserList({ userIds }: { userIds: string[] }) {
 
 Rendering 100 cards makes one HTTP request.
 
-### Tanstack Query / SWR
+### Async State Libraries (React Query)
 
 Batchkit handles batching only. For caching, combine with Tanstack Query, SWR, or RTK Query. These tools handle async state and batchkit schedules requests. They compose naturally.
-
-```typescript
-import { batch } from 'batchkit'
-import { useQuery } from '@tanstack/react-query'
-
-const users = batch(
-  (ids, signal) => fetch(`/api/users?ids=${ids}`, { signal }).then(r => r.json()),
-  'id'
-)
-
-function useUser(id: string) {
-  return useQuery({
-    queryKey: ['user', id],
-    queryFn: ({ signal }) => users.get(id, { signal }),
-    staleTime: 5 * 60 * 1000,
-  })
-}
-```
 
 ## Rate-Limited APIs
 
