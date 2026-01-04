@@ -8,14 +8,11 @@ order: 3
 
 ## Database Queries
 
+Avoid N+1 queries by batching database requests.
+
 ### Prisma
 
 ```typescript
-const users = batch(
-  (ids) => prisma.user.findMany({ where: { id: { in: ids } } }),
-  'id'
-)
-
 const posts = batch(
   (authorIds) => prisma.post.findMany({ 
     where: { authorId: { in: authorIds } } 
@@ -30,7 +27,10 @@ const posts = batch(
 import { inArray } from 'drizzle-orm'
 
 const users = batch(
-  (ids) => db.select().from(usersTable).where(inArray(usersTable.id, ids)),
+  (ids) => 
+    db.select()
+      .from(usersTable)
+      .where(inArray(usersTable.id, ids)),
   'id'
 )
 ```
@@ -85,26 +85,14 @@ function UserList({ userIds }: { userIds: string[] }) {
 
 Rendering 100 cards makes one HTTP request.
 
-## Rate-Limited APIs
+### Tanstack Query / SWR
 
-When your API has batch size limits:
-
-```typescript
-const products = batch(
-  (ids) => shopify.products.list({ ids }),
-  'id',
-  { max: 50 }  // Shopify's limit
-)
-
-// Requesting 200 products makes 4 sequential API calls
-const items = await products.get(allProductIds)
-```
-
-## Caching Layer
-
-batchkit handles batching only. For caching, use React Query or SWR:
+Batchkit handles batching only. For caching, combine with Tanstack Query, SWR, or RTK Query. These tools handle async state and batchkit schedules requests. They compose naturally.
 
 ```typescript
+import { batch } from 'batchkit'
+import { useQuery } from '@tanstack/react-query'
+
 const users = batch(
   (ids, signal) => fetch(`/api/users?ids=${ids}`, { signal }).then(r => r.json()),
   'id'
@@ -119,29 +107,17 @@ function useUser(id: string) {
 }
 ```
 
-React Query caches results. batchkit batches requests. They compose naturally.
+## Rate-Limited APIs
 
-## Object Responses
-
-Some APIs return objects keyed by ID instead of arrays:
-
-```json
-{
-  "user-1": { "id": "user-1", "name": "Alice" },
-  "user-2": { "id": "user-2", "name": "Bob" }
-}
-```
-
-Use `indexed` to match by object key:
+When your API has batch size limits:
 
 ```typescript
-import { batch, indexed } from 'batchkit'
-
-const users = batch(
-  async (ids) => {
-    const res = await fetch(`/api/users?ids=${ids.join(',')}`)
-    return res.json()
-  },
-  indexed
+const products = batch(
+  (ids) => shopify.products.list({ ids }),
+  'id',
+  { max: 50 }  // Shopify's limit
 )
+
+// Requesting 200 products makes 4 sequential API calls
+const items = await products.get(allProductIds)
 ```
