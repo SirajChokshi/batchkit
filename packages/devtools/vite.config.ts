@@ -12,9 +12,11 @@ export default defineConfig({
   ],
   build: {
     lib: {
-      entry: './src/index.ts',
+      entry: {
+        index: './src/index.ts',
+        mount: './src/mount.ts',
+      },
       formats: ['es'],
-      fileName: 'index',
     },
     rollupOptions: {
       external: ['batchkit', 'solid-js', 'solid-js/web'],

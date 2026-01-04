@@ -24,6 +24,11 @@ export default defineConfig({
       alias: {
         // Resolve batchkit to the source files directly
         batchkit: resolve(__dirname, '../../packages/core/src/index.ts'),
+        // Resolve devtools mount subpath (workspace packages may not respect exports field)
+        'batchkit-devtools/mount': resolve(
+          __dirname,
+          '../../packages/devtools/dist/mount.js',
+        ),
       },
     },
     optimizeDeps: {

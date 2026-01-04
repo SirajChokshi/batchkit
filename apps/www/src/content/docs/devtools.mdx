@@ -4,13 +4,15 @@ description: Visualize batching in real-time
 order: 4
 ---
 
+import devtoolsImage from '../../assets/devtools-1.png';
+import { Image } from 'astro:assets';
 import CodeTabs from '../../components/CodeTabs.astro';
 
 # DevTools
 
-![DevTools](/docs/devtools-1.png)
+<Image src={devtoolsImage} alt="DevTools screenshot" />
 
-See how your requests are being batched and scheduled in real-time in a browser environment. For server-side tracing, see the [server-side tracing](/docs/guide#server-side-tracing) section in the guide.
+See how your requests are being batched and scheduled in real-time in a browser environment. For non-browser usage, see the [server-side tracing](/docs/guide#server-side-tracing) section in the guide.
 
 ## Installation + Setup
 

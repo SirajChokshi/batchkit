@@ -16,6 +16,7 @@
     "astro": "^5.0.0",
     "batchkit": "workspace:*",
     "batchkit-devtools-svelte": "workspace:*",
+    "sharp": "0.34.5",
     "svelte": "^5.0.0",
     "tailwindcss": "^4.1.18"
   },
