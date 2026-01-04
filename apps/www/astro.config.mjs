@@ -24,6 +24,11 @@ export default defineConfig({
       alias: {
         // Resolve batchkit to the source files directly
         batchkit: resolve(__dirname, '../../packages/core/src/index.ts'),
+        // HACK: Allow direct import of devtools mount to bypass production check for docs demo
+        'batchkit-devtools/src/mount': resolve(
+          __dirname,
+          '../../packages/devtools/src/mount.ts',
+        ),
       },
     },
     optimizeDeps: {

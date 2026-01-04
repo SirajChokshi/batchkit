@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { Batcher, Scheduler } from 'batchkit';
 import { batch, onAnimationFrame, onIdle } from 'batchkit';
-import { BatchkitDevtools } from 'batchkit-devtools-svelte';
+import BatchkitDevtoolsForced from './BatchkitDevtoolsForced.svelte';
 import ConfigPanel from './ConfigPanel.svelte';
 import Controls from './Controls.svelte';
 import CodePreview from './CodePreview.svelte';
@@ -148,5 +148,5 @@ function handleConfigChange() {
 
 <!-- DevTools (hidden on mobile) -->
 <div class="hidden lg:block">
-  <BatchkitDevtools defaultOpen={true} />
+  <BatchkitDevtoolsForced defaultOpen={true} />
 </div>
