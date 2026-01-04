@@ -94,14 +94,11 @@ mount(container, {
 
 DevTools automatically trace all batchers created in your app by hooking into the core library. `batchkit` checks if the devtools are mounted before doing extra work.
 
-```typescript
-const users = batch(fetchUsers, 'id');
-```
-
-Unnamed batchers appear as `unnamed-1`, `unnamed-2`, etc. For better labels, provide a `name`:
+Unnamed batchers appear as `unnamed-1`, `unnamed-2`, etc. You can learn more about where these batchers were defined in the `trace` tab, but for better labels, provide a value for the `name` option:
 
 ```typescript
 const users = batch(fetchUsers, 'id', { name: 'users' });
+//                                      ^^^^^^^^^^^^^
 ```
 
 
