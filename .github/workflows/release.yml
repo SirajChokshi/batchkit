@@ -28,8 +28,10 @@ jobs:
       - name: Setup Node.js (for npm publish)
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
+          node-version: "22"
+
+      - name: Upgrade npm for OIDC support
+        run: npm install -g npm@latest
 
       - name: Extract version from tag
         id: version
