@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { batch, onIdle } from '../src';
+import { batch, onAnimationFrame, onIdle } from '../src';
 
 describe('schedulers', () => {
   describe('default microtask scheduler', () => {
@@ -76,21 +76,113 @@ describe('schedulers', () => {
     });
   });
 
-  // Note: onAnimationFrame and onIdle are difficult to test in Node
-  // They fall back to setTimeout-based implementations
   describe('onIdle scheduler', () => {
     it('should batch with idle scheduler', async () => {
       const fn = mock(async (keys: string[]) => {
         return keys.map((k) => ({ id: k }));
       });
 
-      // onIdle() returns a scheduler
       const items = batch(fn, 'id', { schedule: onIdle({ timeout: 10 }) });
 
       const result = await items.get('a');
 
       expect(result).toEqual({ id: 'a' });
       expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should batch with idle scheduler without options', async () => {
+      const fn = mock(async (keys: string[]) => {
+        return keys.map((k) => ({ id: k }));
+      });
+
+      const items = batch(fn, 'id', { schedule: onIdle() });
+
+      const result = await items.get('a');
+
+      expect(result).toEqual({ id: 'a' });
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('onAnimationFrame scheduler', () => {
+    it('should batch with animation frame scheduler', async () => {
+      // polyfill requestAnimationFrame for node/bun environment
+      const originalRAF = globalThis.requestAnimationFrame;
+      const originalCAF = globalThis.cancelAnimationFrame;
+      globalThis.requestAnimationFrame = (cb: FrameRequestCallback) =>
+        setTimeout(() => cb(performance.now()), 16) as unknown as number;
+      globalThis.cancelAnimationFrame = (id: number) => clearTimeout(id);
+
+      try {
+        const fn = mock(async (keys: string[]) => {
+          return keys.map((k) => ({ id: k }));
+        });
+
+        const items = batch(fn, 'id', { schedule: onAnimationFrame });
+
+        const result = await items.get('a');
+
+        expect(result).toEqual({ id: 'a' });
+        expect(fn).toHaveBeenCalledTimes(1);
+      } finally {
+        if (originalRAF) globalThis.requestAnimationFrame = originalRAF;
+        else delete (globalThis as Record<string, unknown>).requestAnimationFrame;
+        if (originalCAF) globalThis.cancelAnimationFrame = originalCAF;
+        else delete (globalThis as Record<string, unknown>).cancelAnimationFrame;
+      }
+    });
+  });
+
+  describe('scheduler cleanup', () => {
+    it('should call cleanup when abort is called before dispatch', async () => {
+      let cleanupCalled = false;
+
+      const customScheduler = (dispatch: () => void) => {
+        setTimeout(dispatch, 1000);
+        return () => {
+          cleanupCalled = true;
+        };
+      };
+
+      const fn = mock(async (keys: string[]) => {
+        return keys.map((k) => ({ id: k }));
+      });
+
+      const items = batch(fn, 'id', { schedule: customScheduler });
+
+      const promise = items.get('a');
+
+      items.abort();
+
+      await promise.catch(() => {});
+
+      expect(cleanupCalled).toBe(true);
+      expect(fn).not.toHaveBeenCalled();
+    });
+
+    it('should call cleanup when flush is called', async () => {
+      let cleanupCalled = false;
+
+      const customScheduler = (dispatch: () => void) => {
+        setTimeout(dispatch, 1000);
+        return () => {
+          cleanupCalled = true;
+        };
+      };
+
+      const fn = mock(async (keys: string[]) => {
+        return keys.map((k) => ({ id: k }));
+      });
+
+      const items = batch(fn, 'id', { schedule: customScheduler });
+
+      const promise = items.get('a');
+
+      await items.flush();
+
+      expect(cleanupCalled).toBe(true);
+      expect(fn).toHaveBeenCalledTimes(1);
+      await promise;
     });
   });
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from 'bun:test';
+import { describe, expect, it, mock, spyOn } from 'bun:test';
 import { BatchError, batch, indexed, type TraceEvent } from '../src';
 
 describe('batch', () => {
@@ -406,6 +406,297 @@ describe('batch', () => {
       expect(types).toContain('schedule');
       expect(types).toContain('dispatch');
       expect(types).toContain('resolve');
+    });
+
+    it('should emit dedup trace event for duplicate keys', async () => {
+      const events: TraceEvent<string>[] = [];
+
+      const items = batch(
+        async (keys: string[]) => keys.map((k) => ({ id: k })),
+        'id',
+        {
+          name: 'test',
+          trace: (event) => events.push(event),
+        },
+      );
+
+      await Promise.all([items.get('same'), items.get('same')]);
+
+      const types = events.map((e) => e.type);
+      expect(types).toContain('dedup');
+    });
+
+    it('should emit error trace event when batch function throws', async () => {
+      const events: TraceEvent<string>[] = [];
+
+      const items = batch(
+        async (_keys: string[]) => {
+          throw new Error('test error');
+        },
+        'id',
+        {
+          name: 'test',
+          trace: (event) => events.push(event),
+        },
+      );
+
+      await items.get('a').catch(() => {});
+
+      const errorEvent = events.find((e) => e.type === 'error');
+      expect(errorEvent).toBeDefined();
+      expect(
+        (errorEvent as Extract<TraceEvent<string>, { type: 'error' }>).error
+          .message,
+      ).toBe('test error');
+    });
+
+    it('should emit abort trace event when aborted', async () => {
+      const events: TraceEvent<string>[] = [];
+
+      const items = batch(
+        async (keys: string[]) => {
+          await new Promise((r) => setTimeout(r, 100));
+          return keys.map((k) => ({ id: k }));
+        },
+        'id',
+        {
+          name: 'test',
+          wait: 10,
+          trace: (event) => events.push(event),
+        },
+      );
+
+      const promise = items.get('a');
+      items.abort();
+      await promise.catch(() => {});
+
+      const types = events.map((e) => e.type);
+      expect(types).toContain('get');
+    });
+  });
+
+  describe('numeric property key matching', () => {
+    it('should support numeric property keys as match', async () => {
+      type Item = [number, string];
+
+      const fn = mock(async (keys: number[]): Promise<Item[]> => {
+        return keys.map((k) => [k, `value-${k}`]);
+      });
+
+      const items = batch(fn, 0 as keyof Item);
+
+      const results = await Promise.all([
+        items.get(1),
+        items.get(2),
+        items.get(3),
+      ]);
+
+      expect(results).toEqual([
+        [1, 'value-1'],
+        [2, 'value-2'],
+        [3, 'value-3'],
+      ]);
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('indexed matching edge cases', () => {
+    it('should reject with BatchError when key not found in indexed result', async () => {
+      const fn = mock(async (keys: string[]) => {
+        const result: Record<string, { name: string }> = {};
+        for (const k of keys.slice(0, 1)) {
+          result[k] = { name: `User ${k}` };
+        }
+        return result;
+      });
+
+      const users = batch(fn, indexed);
+
+      const results = await Promise.allSettled([
+        users.get('alice'),
+        users.get('bob'),
+      ]);
+
+      expect(results[0].status).toBe('fulfilled');
+      expect(results[1].status).toBe('rejected');
+      expect((results[1] as PromiseRejectedResult).reason).toBeInstanceOf(
+        BatchError,
+      );
+    });
+
+    it('should work with max batch size and indexed matching', async () => {
+      const fn = mock(async (keys: string[]) => {
+        const result: Record<string, { value: number }> = {};
+        for (const k of keys) {
+          result[k] = { value: k.length };
+        }
+        return result;
+      });
+
+      const items = batch(fn, indexed, { max: 2 });
+
+      const results = await Promise.all([
+        items.get('a'),
+        items.get('bb'),
+        items.get('ccc'),
+      ]);
+
+      expect(results).toEqual([{ value: 1 }, { value: 2 }, { value: 3 }]);
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('error handling edge cases', () => {
+    it('should handle non-Error throws from batch function', async () => {
+      const items = batch(async () => {
+        throw 'string error';
+      }, 'id');
+
+      const result = await items.get('a').catch((e) => e);
+      expect(result).toBeInstanceOf(Error);
+      expect(result.message).toBe('string error');
+    });
+
+    it('should throw BatchError when batch function returns non-array with array match', async () => {
+      const items = batch(async () => {
+        return { not: 'an array' } as unknown as { id: string }[];
+      }, 'id');
+
+      const result = await items.get('a').catch((e) => e);
+      expect(result).toBeInstanceOf(BatchError);
+      expect(result.message).toContain('non-array');
+    });
+  });
+
+  describe('abort edge cases', () => {
+    it('should abort underlying batch function when all per-request signals abort', async () => {
+      let capturedSignal: AbortSignal | null = null;
+
+      const items = batch(async (keys: string[], signal: AbortSignal) => {
+        capturedSignal = signal;
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(
+            () => resolve(keys.map((k) => ({ id: k }))),
+            100,
+          );
+          signal.addEventListener('abort', () => {
+            clearTimeout(timeout);
+            reject(new DOMException('Aborted', 'AbortError'));
+          });
+        });
+        return keys.map((k) => ({ id: k }));
+      }, 'id');
+
+      const controller1 = new AbortController();
+      const controller2 = new AbortController();
+
+      const promise1 = items.get('a', { signal: controller1.signal });
+      const promise2 = items.get('b', { signal: controller2.signal });
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      controller1.abort();
+      controller2.abort();
+
+      await Promise.allSettled([promise1, promise2]);
+
+      expect(capturedSignal).not.toBeNull();
+      expect(capturedSignal!.aborted).toBe(true);
+    });
+
+    it('should not abort underlying fetch when only some requests are aborted', async () => {
+      let capturedSignal: AbortSignal | null = null;
+
+      const items = batch(async (keys: string[], signal: AbortSignal) => {
+        capturedSignal = signal;
+        await new Promise((r) => setTimeout(r, 50));
+        return keys.map((k) => ({ id: k }));
+      }, 'id');
+
+      const controller = new AbortController();
+
+      const promise1 = items.get('a', { signal: controller.signal });
+      const promise2 = items.get('b');
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      controller.abort();
+
+      const [result1, result2] = await Promise.allSettled([promise1, promise2]);
+
+      expect(result1.status).toBe('rejected');
+      expect(result2.status).toBe('fulfilled');
+      expect(capturedSignal).not.toBeNull();
+      expect(capturedSignal!.aborted).toBe(false);
+    });
+  });
+
+  describe('empty array edge case', () => {
+    it('should return empty array for get([])', async () => {
+      const fn = mock(async (keys: string[]) => {
+        return keys.map((k) => ({ id: k }));
+      });
+
+      const items = batch(fn, 'id');
+      const results = await items.get([]);
+
+      expect(results).toEqual([]);
+      expect(fn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('flush edge cases', () => {
+    it('should handle flush called multiple times', async () => {
+      const fn = mock(async (keys: string[]) => {
+        return keys.map((k) => ({ id: k }));
+      });
+
+      const items = batch(fn, 'id', { wait: 1000 });
+
+      const promise = items.get('a');
+
+      await Promise.all([items.flush(), items.flush(), items.flush()]);
+
+      const result = await promise;
+      expect(result).toEqual({ id: 'a' });
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle new requests after flush', async () => {
+      const fn = mock(async (keys: string[]) => {
+        return keys.map((k) => ({ id: k }));
+      });
+
+      const items = batch(fn, 'id');
+
+      await items.get('first');
+      await items.get('second');
+
+      expect(fn).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('concurrent batches', () => {
+    it('should handle new requests while batch is in-flight', async () => {
+      const fn = mock(async (keys: string[]) => {
+        const batchMarker = keys.join(',');
+        await new Promise((r) => setTimeout(r, 30));
+        return keys.map((k) => ({ id: k, batchKeys: batchMarker }));
+      });
+
+      const items = batch(fn, 'id');
+
+      const promise1 = items.get('a');
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      const promise2 = items.get('b');
+
+      const [result1, result2] = await Promise.all([promise1, promise2]);
+
+      expect(result1).toEqual({ id: 'a', batchKeys: 'a' });
+      expect(result2).toEqual({ id: 'b', batchKeys: 'b' });
+      expect(fn).toHaveBeenCalledTimes(2);
     });
   });
 });

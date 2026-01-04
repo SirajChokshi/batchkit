@@ -38,6 +38,7 @@ export function batch<K, V>(
   let cleanup: (() => void) | null = null;
   let isScheduled = false;
   let currentAbortController: AbortController | null = null;
+  let inFlightRequests: PendingRequest<K, V>[] = [];
 
   function scheduleDispatch(): void {
     if (isScheduled || queue.length === 0) return;
@@ -114,6 +115,8 @@ export function batch<K, V>(
     }
 
     if (uniqueKeys.length === 0) return;
+
+    inFlightRequests = chunk;
 
     tracer.emit({
       type: 'dispatch',
@@ -210,6 +213,7 @@ export function batch<K, V>(
       }
     } finally {
       currentAbortController = null;
+      inFlightRequests = [];
     }
   }
 
@@ -246,8 +250,9 @@ export function batch<K, V>(
           request.aborted = true;
           reject(new DOMException('Aborted', 'AbortError'));
 
-          const allAborted = queue.every((r) => r.aborted);
-          if (allAborted && currentAbortController) {
+          const allPendingAborted = queue.every((r) => r.aborted);
+          const allInFlightAborted = inFlightRequests.length > 0 && inFlightRequests.every((r) => r.aborted);
+          if (allPendingAborted && allInFlightAborted && currentAbortController) {
             currentAbortController.abort();
           }
         };

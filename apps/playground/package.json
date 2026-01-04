@@ -13,7 +13,6 @@
     "@tailwindcss/vite": "^4.1.18",
     "astro": "^5.0.0",
     "batchkit": "workspace:*",
-    "batchkit-devtools": "workspace:*",
     "batchkit-devtools-svelte": "workspace:*",
     "svelte": "^5.0.0",
     "tailwindcss": "^4.1.18"
