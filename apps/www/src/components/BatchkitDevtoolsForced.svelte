@@ -1,7 +1,7 @@
 <script lang="ts">
-  // HACK: Import directly from source to bypass production check
+  // HACK: Import from /mount subpath to bypass production check
   // This is only for the docs site demo - don't do this in real apps
-  import { mount } from 'batchkit-devtools/src/mount';
+  import { mount } from 'batchkit-devtools/mount';
   import { onMount } from 'svelte';
 
   interface Props {
