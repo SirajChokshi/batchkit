@@ -64,19 +64,19 @@ jobs:
         run: bun test
 
       - name: Publish batchkit (core)
-        run: npm publish --access public
+        run: npm publish --provenance --access public
         working-directory: packages/core
 
       - name: Publish batchkit-devtools
-        run: npm publish --access public
+        run: npm publish --provenance --access public
         working-directory: packages/devtools
 
       - name: Publish batchkit-devtools-react
-        run: npm publish --access public
+        run: npm publish --provenance --access public
         working-directory: packages/devtools-react
 
       - name: Publish batchkit-devtools-svelte
-        run: npm publish --access public
+        run: npm publish --provenance --access public
         working-directory: packages/devtools-svelte
 
       - name: Create GitHub Release
