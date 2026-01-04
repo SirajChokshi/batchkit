@@ -8,14 +8,11 @@ order: 3
 
 ## Database Queries
 
+Avoid N+1 queries by batching database requests.
+
 ### Prisma
 
 ```typescript
-const users = batch(
-  (ids) => prisma.user.findMany({ where: { id: { in: ids } } }),
-  'id'
-)
-
 const posts = batch(
   (authorIds) => prisma.post.findMany({ 
     where: { authorId: { in: authorIds } } 
@@ -30,7 +27,10 @@ const posts = batch(
 import { inArray } from 'drizzle-orm'
 
 const users = batch(
-  (ids) => db.select().from(usersTable).where(inArray(usersTable.id, ids)),
+  (ids) => 
+    db.select()
+      .from(usersTable)
+      .where(inArray(usersTable.id, ids)),
   'id'
 )
 ```
@@ -85,6 +85,10 @@ function UserList({ userIds }: { userIds: string[] }) {
 
 Rendering 100 cards makes one HTTP request.
 
+### Async State Libraries (React Query)
+
+Batchkit handles batching only. For caching, combine with Tanstack Query, SWR, or RTK Query. These tools handle async state and batchkit schedules requests. They compose naturally.
+
 ## Rate-Limited APIs
 
 When your API has batch size limits:
@@ -100,48 +104,27 @@ const products = batch(
 const items = await products.get(allProductIds)
 ```
 
-## Caching Layer
+## Wrapping Caches
 
-batchkit handles batching only. For caching, use React Query or SWR:
-
-```typescript
-const users = batch(
-  (ids, signal) => fetch(`/api/users?ids=${ids}`, { signal }).then(r => r.json()),
-  'id'
-)
-
-function useUser(id: string) {
-  return useQuery({
-    queryKey: ['user', id],
-    queryFn: ({ signal }) => users.get(id, { signal }),
-    staleTime: 5 * 60 * 1000,
-  })
-}
-```
-
-React Query caches results. batchkit batches requests. They compose naturally.
-
-## Object Responses
-
-Some APIs return objects keyed by ID instead of arrays:
-
-```json
-{
-  "user-1": { "id": "user-1", "name": "Alice" },
-  "user-2": { "id": "user-2", "name": "Bob" }
-}
-```
-
-Use `indexed` to match by object key:
+Wrap single-threaded caches (like Redis) to batch requests and save round-trips.
 
 ```typescript
 import { batch, indexed } from 'batchkit'
 
-const users = batch(
-  async (ids) => {
-    const res = await fetch(`/api/users?ids=${ids.join(',')}`)
-    return res.json()
-  },
-  indexed
-)
+const getFlag = batch(async (names) => {
+  const values = await redis.mget(names.map(n => `flag:${n}`))
+  return Object.fromEntries(
+    names.map((name, i) => [name, values[i] === '1'])
+  )
+}, indexed)
+
+// Multiple checks → single MGET
+const [checkoutUpsell, freeShippingPromo] = await Promise.all([
+  getFlag.get('checkout_upsell'),
+  getFlag.get('free_shipping_promo')
+])
+
+if (checkoutUpsell) {
+  // route to interstitial page
+}
 ```

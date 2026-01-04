@@ -1,7 +1,7 @@
 import { BatchError } from './errors';
 import { createIndexedMatcher, isIndexed, normalizeMatch } from './match';
 import { microtask, wait } from './schedulers';
-import { createTracer } from './trace';
+import { createTracer, getDevtoolsHook } from './trace';
 import type {
   Batcher,
   BatchFn,
@@ -10,6 +10,7 @@ import type {
   Match,
   PendingRequest,
   Scheduler,
+  TraceEvent,
 } from './types';
 
 export function batch<K, V>(
@@ -27,7 +28,16 @@ export function batch<K, V>(
   } = options;
 
   const scheduler: Scheduler = schedule ?? (waitMs ? wait(waitMs) : microtask);
-  const tracer = createTracer(name, traceHandler);
+
+  let devtoolsEmitter: ((event: TraceEvent) => void) | undefined;
+  const hook = getDevtoolsHook();
+
+  if (hook) {
+    const stack = new Error().stack;
+    devtoolsEmitter = hook.onBatcherCreated({ fn, name, stack });
+  }
+
+  const tracer = createTracer(name, traceHandler, () => devtoolsEmitter);
 
   const matchFn = normalizeMatch(match);
   const isIndexedMatch = isIndexed(match);
@@ -38,6 +48,7 @@ export function batch<K, V>(
   let cleanup: (() => void) | null = null;
   let isScheduled = false;
   let currentAbortController: AbortController | null = null;
+  let inFlightRequests: PendingRequest<K, V>[] = [];
 
   function scheduleDispatch(): void {
     if (isScheduled || queue.length === 0) return;
@@ -114,6 +125,8 @@ export function batch<K, V>(
     }
 
     if (uniqueKeys.length === 0) return;
+
+    inFlightRequests = chunk;
 
     tracer.emit({
       type: 'dispatch',
@@ -210,6 +223,7 @@ export function batch<K, V>(
       }
     } finally {
       currentAbortController = null;
+      inFlightRequests = [];
     }
   }
 
@@ -246,8 +260,15 @@ export function batch<K, V>(
           request.aborted = true;
           reject(new DOMException('Aborted', 'AbortError'));
 
-          const allAborted = queue.every((r) => r.aborted);
-          if (allAborted && currentAbortController) {
+          const allPendingAborted = queue.every((r) => r.aborted);
+          const allInFlightAborted =
+            inFlightRequests.length > 0 &&
+            inFlightRequests.every((r) => r.aborted);
+          if (
+            allPendingAborted &&
+            allInFlightAborted &&
+            currentAbortController
+          ) {
             currentAbortController.abort();
           }
         };

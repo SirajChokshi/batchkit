@@ -1,4 +1,4 @@
-export { getRegistry, useStore } from './core/registry';
+export { getRegistry, initRegistry, useStore } from './core/registry';
 export type {
   BatcherInfo,
   BatchInfo,
@@ -8,4 +8,8 @@ export type {
   TraceEventType,
 } from './core/types';
 export type { MountOptions } from './mount';
-export { mount } from './mount';
+
+import { mount as _mount } from './mount';
+
+export const mount: typeof _mount =
+  process.env.NODE_ENV !== 'development' ? () => () => {} : _mount;

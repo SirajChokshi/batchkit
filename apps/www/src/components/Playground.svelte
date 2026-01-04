@@ -49,7 +49,7 @@ function createNewBatcher() {
       wait,
       schedule,
       max: maxBatchSize > 0 ? maxBatchSize : undefined,
-      name: 'custom',
+      // name: 'custom',
     },
   );
 
@@ -97,9 +97,7 @@ function handleFlush() {
 }
 
 function handleClear() {
-  if (typeof window !== 'undefined' && window.__BATCHKIT_DEVTOOLS__) {
-    window.__BATCHKIT_DEVTOOLS__.clear();
-  }
+  // Clear is handled via the devtools Clear button
 }
 
 function handleConfigChange() {
@@ -111,7 +109,7 @@ function handleConfigChange() {
   <div class="flex-1 grid grid-cols-12 max-lg:grid-cols-1 min-h-0 h-full">
     <!-- Left: Custom Batcher Config + Controls + Code Preview -->
     <div class="flex flex-col border-r border-stone-700 max-lg:border-r-0 max-lg:border-b col-span-4 min-h-0">
-      <div class="flex-shrink-0">
+      <div class="shrink-0">
         <ConfigPanel
           bind:schedulerType
           bind:windowDelay
@@ -119,15 +117,17 @@ function handleConfigChange() {
           bind:resolverDelay
           onConfigChange={handleConfigChange}
         />
-        <Controls
-          {schedulerType}
-          onLoadKey={handleLoadKey}
-          onLoadRandom={handleLoadRandom}
-          onLoadDuplicate={handleLoadDuplicate}
-          onBurst={handleBurst}
-          onFlush={handleFlush}
-          onClear={handleClear}
-        />
+        <div class="hidden lg:block">
+          <Controls
+            {schedulerType}
+            onLoadKey={handleLoadKey}
+            onLoadRandom={handleLoadRandom}
+            onLoadDuplicate={handleLoadDuplicate}
+            onBurst={handleBurst}
+            onFlush={handleFlush}
+            onClear={handleClear}
+          />
+        </div>
       </div>
       <div class="flex-1 min-h-0 overflow-y-auto">
         <CodePreview
@@ -139,11 +139,14 @@ function handleConfigChange() {
       </div>
     </div>
 
-    <!-- Right: Presets -->
-    <div class="flex flex-col min-w-0 overflow-hidden col-span-8">
+    <!-- Right: Presets (hidden on mobile) -->
+    <div class="hidden lg:flex flex-col min-w-0 overflow-hidden col-span-8">
       <Presets />
     </div>
   </div>
 </div>
 
-<BatchkitDevtools />
+<!-- DevTools (hidden on mobile) -->
+<div class="hidden lg:block">
+  <BatchkitDevtools defaultOpen={true} />
+</div>

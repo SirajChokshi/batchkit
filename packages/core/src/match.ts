@@ -6,7 +6,7 @@ export function isIndexed<K, V>(match: Match<K, V>): match is symbol {
 }
 
 export function isKeyMatch<K, V>(match: Match<K, V>): match is keyof V {
-  return typeof match === 'string';
+  return typeof match === 'string' || typeof match === 'number';
 }
 
 export function normalizeMatch<K, V>(match: Match<K, V>): MatchFn<K, V> | null {
@@ -16,11 +16,11 @@ export function normalizeMatch<K, V>(match: Match<K, V>): MatchFn<K, V> | null {
   }
 
   if (isKeyMatch<K, V>(match)) {
-    const key = match;
+    const key = match as string | number;
     return (results: V[], requestedKey: K) => {
       return results.find(
         (item) =>
-          (item as Record<string, unknown>)[key as string] === requestedKey,
+          (item as Record<string | number, unknown>)[key] === requestedKey,
       );
     };
   }

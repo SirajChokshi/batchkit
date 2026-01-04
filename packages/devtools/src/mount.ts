@@ -1,8 +1,10 @@
 import { render } from 'solid-js/web';
 import { Panel, type PanelProps } from './components/Panel';
-import { getRegistry } from './core/registry';
+import { initRegistry } from './core/registry';
 
 export interface MountOptions {
+  position?: 'right' | 'bottom' | 'left';
+  defaultOpen?: boolean;
   buttonStyle?: Record<string, string>;
   buttonClass?: string;
   panelStyle?: Record<string, string>;
@@ -17,9 +19,11 @@ export function mount(
     return () => {};
   }
 
-  getRegistry();
+  initRegistry();
 
   const props: PanelProps = {
+    position: options?.position,
+    defaultOpen: options?.defaultOpen,
     buttonStyle: options?.buttonStyle,
     buttonClass: options?.buttonClass,
     panelStyle: options?.panelStyle,

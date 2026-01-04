@@ -4,13 +4,21 @@ description: How batchkit works
 order: 1
 ---
 
+import CodeTabs from '../../components/CodeTabs.astro';
+
 # batchkit
 
 Automatic batching for async operations.
 
-```bash
-npm install batchkit
-```
+<CodeTabs 
+  tabs={[
+    { id: 'npm', label: 'npm', lang: 'bash', code: 'npm install batchkit' },
+    { id: 'pnpm', label: 'pnpm', lang: 'bash', code: 'pnpm add batchkit' },
+    { id: 'bun', label: 'bun', lang: 'bash', code: 'bun add batchkit' },
+  ]}
+/>
+
+After installation, create a batcher like this:
 
 ```typescript
 import { batch } from 'batchkit'
@@ -183,7 +191,17 @@ users.flush()
 
 ## Debugging
 
+### Client DevTools
+
+Batchkit offers a user interface for debugging your batchers in real-time with native packages for React and Svelte.
+
+[Learn more →](/docs/devtools)
+
 Name your batchers and add tracing:
+
+### Server-side tracing
+
+For non-browser environments, you can manually trace your batchers with the `trace` option. 
 
 ```typescript
 const users = batch(fn, 'id', {
@@ -192,4 +210,15 @@ const users = batch(fn, 'id', {
 })
 ```
 
-Events: `get`, `dedup`, `schedule`, `dispatch`, `resolve`, `error`, `abort`
+Trace propagates the following events:
+
+| Event | Description |
+|-------|-------------|
+| `get` | A key was requested via `get(key)` |
+| `dedup` | Request was deduplicated (same key already pending) |
+| `schedule` | A batch was scheduled for dispatch |
+| `dispatch` | Batch started executing with its collected keys |
+| `resolve` | Batch completed successfully |
+| `error` | Batch failed with an error |
+| `abort` | Batch was aborted via signal or `abort()` |
+

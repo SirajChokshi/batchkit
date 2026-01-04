@@ -49,7 +49,7 @@ const currentPath = Astro.url.pathname;
     </nav>
 
     <!-- Main content -->
-    <article class="prose-docs lg:ml-56 lg:pl-8 xl:mr-56 xl:pr-4 pb-32">
+    <article class="prose prose-invert max-w-none lg:ml-56 lg:pl-8 xl:mr-56 xl:pr-4 pb-32">
       <slot />
     </article>
 
@@ -62,7 +62,7 @@ const currentPath = Astro.url.pathname;
 
 <script>
   function initCopyButtons() {
-    document.querySelectorAll('.prose-docs pre').forEach((pre) => {
+    document.querySelectorAll('.prose pre').forEach((pre) => {
       if (pre.querySelector('.copy-btn')) return;
 
       const wrapper = document.createElement('div');
