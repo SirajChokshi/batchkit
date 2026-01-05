@@ -31,6 +31,9 @@ export function __setDevtoolsHook(hook: DevtoolsHook | null): void {
       pending.setEmitter(emitter);
     }
     pendingBatchers.length = 0;
+  } else if (!hook) {
+    // clear pending batchers when hook is remove
+    pendingBatchers.length = 0;
   }
 }
 
