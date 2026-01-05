@@ -1,7 +1,7 @@
 import { BatchError } from './errors';
 import { createIndexedMatcher, isIndexed, normalizeMatch } from './match';
 import { microtask, wait } from './schedulers';
-import { createTracer, getDevtoolsHook } from './trace';
+import { createTracer, registerBatcher } from './trace';
 import type {
   Batcher,
   BatchFn,
@@ -30,12 +30,11 @@ export function batch<K, V>(
   const scheduler: Scheduler = schedule ?? (waitMs ? wait(waitMs) : microtask);
 
   let devtoolsEmitter: ((event: TraceEvent) => void) | undefined;
-  const hook = getDevtoolsHook();
+  const creationStack = new Error().stack;
 
-  if (hook) {
-    const stack = new Error().stack;
-    devtoolsEmitter = hook.onBatcherCreated({ fn, name, stack });
-  }
+  registerBatcher({ fn, name, stack: creationStack }, (emitter) => {
+    devtoolsEmitter = emitter;
+  });
 
   const tracer = createTracer(name, traceHandler, () => devtoolsEmitter);
 

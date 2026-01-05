@@ -1,7 +1,6 @@
 <script lang="ts">
 import type { Batcher, Scheduler } from 'batchkit';
 import { batch, onAnimationFrame, onIdle } from 'batchkit';
-import { onMount } from 'svelte';
 import BatchkitDevtoolsForced from './BatchkitDevtoolsForced.svelte';
 import ConfigPanel from './ConfigPanel.svelte';
 import Controls from './Controls.svelte';
@@ -50,17 +49,17 @@ function createNewBatcher() {
       wait,
       schedule,
       max: maxBatchSize > 0 ? maxBatchSize : undefined,
-      // name: 'custom',
+      name: 'custom',
     },
   );
 
   batcher = newBatcher;
 }
 
-// Initialize batcher after devtools hook is set up
-onMount(() => {
+// Initialize batcher on client-side only
+if (typeof window !== 'undefined') {
   createNewBatcher();
-});
+}
 
 // Handlers for controls
 function handleLoadKey() {
