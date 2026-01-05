@@ -8,14 +8,49 @@ export interface DevtoolsHook {
   }): ((event: TraceEvent) => void) | undefined;
 }
 
+interface PendingBatcher {
+  fn: { toString(): string };
+  name: string | undefined;
+  stack: string | undefined;
+  setEmitter: (emitter: ((event: TraceEvent) => void) | undefined) => void;
+}
+
 let devtoolsHook: DevtoolsHook | null = null;
+const pendingBatchers: PendingBatcher[] = [];
 
 export function __setDevtoolsHook(hook: DevtoolsHook | null): void {
   devtoolsHook = hook;
+
+  if (hook && pendingBatchers.length > 0) {
+    for (const pending of pendingBatchers) {
+      const emitter = hook.onBatcherCreated({
+        fn: pending.fn,
+        name: pending.name,
+        stack: pending.stack,
+      });
+      pending.setEmitter(emitter);
+    }
+    pendingBatchers.length = 0;
+  } else if (!hook) {
+    // clear pending batchers when hook is removed
+    pendingBatchers.length = 0;
+  }
 }
 
-export function getDevtoolsHook(): DevtoolsHook | null {
-  return devtoolsHook;
+export function registerBatcher(
+  info: {
+    fn: { toString(): string };
+    name: string | undefined;
+    stack: string | undefined;
+  },
+  setEmitter: (emitter: ((event: TraceEvent) => void) | undefined) => void,
+): void {
+  if (devtoolsHook) {
+    const emitter = devtoolsHook.onBatcherCreated(info);
+    setEmitter(emitter);
+  } else {
+    pendingBatchers.push({ ...info, setEmitter });
+  }
 }
 
 export function createTracer<K>(
