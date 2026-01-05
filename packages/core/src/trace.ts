@@ -32,7 +32,7 @@ export function __setDevtoolsHook(hook: DevtoolsHook | null): void {
     }
     pendingBatchers.length = 0;
   } else if (!hook) {
-    // clear pending batchers when hook is remove
+    // clear pending batchers when hook is removed
     pendingBatchers.length = 0;
   }
 }
