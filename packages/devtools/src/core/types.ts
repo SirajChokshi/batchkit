@@ -81,9 +81,11 @@ export interface BatchInfo {
   error?: Error;
 }
 
+export type EditorType = 'vscode' | 'cursor' | 'webstorm' | 'idea';
+
 export interface DevtoolsConfig {
   projectRoot?: string;
-  editor?: 'vscode' | 'cursor' | 'webstorm' | 'idea';
+  editor?: EditorType;
 }
 
 export interface DevtoolsStore {

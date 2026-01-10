@@ -5,6 +5,7 @@ export type {
   DevtoolsConfig,
   DevtoolsRegistry,
   DevtoolsStore,
+  EditorType,
   TraceEvent,
   TraceEventType,
 } from './core/types';
