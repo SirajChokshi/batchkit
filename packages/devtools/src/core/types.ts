@@ -81,12 +81,18 @@ export interface BatchInfo {
   error?: Error;
 }
 
+export interface DevtoolsConfig {
+  projectRoot?: string;
+  editor?: 'vscode' | 'cursor' | 'webstorm' | 'idea';
+}
+
 export interface DevtoolsStore {
   batchers: Map<string, BatcherInfo>;
   events: TraceEvent[];
   batches: Map<string, BatchInfo>;
   selectedBatcher: string | null;
   isOpen: boolean;
+  config: DevtoolsConfig;
 }
 
 export interface DevtoolsRegistry {

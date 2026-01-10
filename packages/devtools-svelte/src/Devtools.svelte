@@ -9,6 +9,8 @@
     buttonStyle?: Record<string, string>;
     panelClass?: string;
     panelStyle?: Record<string, string>;
+    projectRoot?: string;
+    editor?: 'vscode' | 'cursor' | 'webstorm' | 'idea';
   }
 
   let { 
@@ -18,6 +20,8 @@
     buttonStyle,
     panelClass,
     panelStyle,
+    projectRoot,
+    editor,
   }: Props = $props();
   
   let container: HTMLDivElement | undefined = $state();
@@ -32,6 +36,8 @@
       buttonStyle,
       panelClass,
       panelStyle,
+      projectRoot,
+      editor,
     });
     
     return () => {

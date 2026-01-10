@@ -7,6 +7,7 @@ import { createRoot, createSignal } from 'solid-js';
 import type {
   BatcherInfo,
   BatchInfo,
+  DevtoolsConfig,
   DevtoolsRegistry,
   DevtoolsStore,
   TraceEvent,
@@ -43,6 +44,7 @@ function createDevtoolsRegistry(): DevtoolsRegistry {
     batches: new Map(),
     selectedBatcher: null,
     isOpen: false,
+    config: {},
   });
 
   const listeners = new Set<(store: DevtoolsStore) => void>();
@@ -248,6 +250,15 @@ export function setSelectedBatcher(name: string | null) {
     registryInstance._setStore?.((prev) => ({
       ...prev,
       selectedBatcher: name,
+    }));
+  }
+}
+
+export function configure(config: DevtoolsConfig) {
+  if (registryInstance) {
+    registryInstance._setStore?.((prev) => ({
+      ...prev,
+      config: { ...prev.config, ...config },
     }));
   }
 }

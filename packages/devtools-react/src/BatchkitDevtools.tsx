@@ -9,6 +9,8 @@ export interface BatchkitDevtoolsProps {
   buttonStyle?: CSSProperties;
   panelClassName?: string;
   panelStyle?: CSSProperties;
+  projectRoot?: string;
+  editor?: 'vscode' | 'cursor' | 'webstorm' | 'idea';
 }
 
 export function BatchkitDevtools({
@@ -18,6 +20,8 @@ export function BatchkitDevtools({
   buttonStyle,
   panelClassName,
   panelStyle,
+  projectRoot,
+  editor,
 }: BatchkitDevtoolsProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -37,6 +41,8 @@ export function BatchkitDevtools({
       buttonStyle: buttonStyle as Record<string, string>,
       panelClass: panelClassName,
       panelStyle: panelStyle as Record<string, string>,
+      projectRoot,
+      editor,
     });
 
     return () => {
@@ -50,6 +56,8 @@ export function BatchkitDevtools({
     buttonStyle,
     panelClassName,
     panelStyle,
+    projectRoot,
+    editor,
   ]);
 
   if (!mounted) return null;

@@ -1,8 +1,88 @@
 import { Component, JSX, Show } from 'solid-js';
-import type { BatcherInfo } from '../core/types';
+import type { BatcherInfo, DevtoolsConfig } from '../core/types';
+import { useStore } from '../core/registry';
 
 interface TraceProps {
   batcher: BatcherInfo | null;
+}
+
+function parseLocationParts(location: string): { path: string; line?: number; column?: number } | null {
+  // Handle URL-style locations (e.g., http://localhost:5173/src/file.ts:10:5)
+  let cleanPath = location;
+  
+  // Strip protocol and host for URL-style paths
+  const urlMatch = location.match(/^https?:\/\/[^/]+(.*)$/);
+  if (urlMatch) {
+    cleanPath = urlMatch[1];
+  }
+  
+  // Strip query params (e.g., ?t=1234567890)
+  cleanPath = cleanPath.split('?')[0];
+  
+  // Parse path:line:column format
+  const match = cleanPath.match(/^(.+?):(\d+)(?::(\d+))?$/);
+  if (!match) {
+    return { path: cleanPath };
+  }
+  
+  return {
+    path: match[1],
+    line: parseInt(match[2], 10),
+    column: match[3] ? parseInt(match[3], 10) : undefined,
+  };
+}
+
+function getEditorUrl(location: string, config: DevtoolsConfig): string | null {
+  const parts = parseLocationParts(location);
+  if (!parts) return null;
+  
+  let { path, line, column } = parts;
+  
+  // If path is relative (starts with / but not absolute), prepend projectRoot
+  if (path.startsWith('/') && !path.startsWith('//') && config.projectRoot) {
+    // Remove leading slash since projectRoot should be absolute
+    path = config.projectRoot + path;
+  } else if (!path.startsWith('/')) {
+    // Relative path without leading slash
+    if (config.projectRoot) {
+      path = config.projectRoot + '/' + path;
+    } else {
+      return null;
+    }
+  }
+  
+  // Select editor protocol
+  const editor = config.editor ?? 'vscode';
+  const protocols: Record<string, string> = {
+    vscode: 'vscode://file',
+    cursor: 'cursor://file',
+    webstorm: 'webstorm://open?file=',
+    idea: 'idea://open?file=',
+  };
+  
+  const protocol = protocols[editor];
+  if (!protocol) return null;
+  
+  if (editor === 'webstorm' || editor === 'idea') {
+    let url = `${protocol}${encodeURIComponent(path)}`;
+    if (line !== undefined) {
+      url += `&line=${line}`;
+      if (column !== undefined) {
+        url += `&column=${column}`;
+      }
+    }
+    return url;
+  }
+  
+  let url = `${protocol}${path}`;
+  if (line !== undefined) {
+    url += `:${line}`;
+    if (column !== undefined) {
+      url += `:${column}`;
+    }
+  }
+  
+  return url;
 }
 
 const containerStyle: JSX.CSSProperties = {
@@ -41,6 +121,18 @@ const valueStyle: JSX.CSSProperties = {
   border: '1px solid #292524',
 };
 
+const linkStyle: JSX.CSSProperties = {
+  ...valueStyle,
+  display: 'block',
+  color: '#93c5fd',
+  'text-decoration': 'none',
+  cursor: 'pointer',
+};
+
+const linkHoverStyle: JSX.CSSProperties = {
+  'text-decoration': 'underline',
+};
+
 const codeStyle: JSX.CSSProperties = {
   ...valueStyle,
   'white-space': 'pre-wrap',
@@ -58,6 +150,9 @@ const nameStyle: JSX.CSSProperties = {
 };
 
 export const Trace: Component<TraceProps> = (props) => {
+  const store = useStore();
+  const config = () => store().config;
+
   return (
     <div style={containerStyle}>
       <Show
@@ -85,10 +180,29 @@ export const Trace: Component<TraceProps> = (props) => {
             </div>
 
             <Show when={batcher().location}>
-              <div style={sectionStyle}>
-                <div style={labelStyle}>Location</div>
-                <div style={valueStyle}>{batcher().location}</div>
-              </div>
+              {(location) => {
+                const editorUrl = () => getEditorUrl(location(), config());
+                return (
+                  <div style={sectionStyle}>
+                    <div style={labelStyle}>Location</div>
+                    <Show
+                      when={editorUrl()}
+                      fallback={<div style={valueStyle}>{location()}</div>}
+                    >
+                      {(url) => (
+                        <a
+                          href={url()}
+                          style={linkStyle}
+                          onMouseOver={(e) => Object.assign(e.currentTarget.style, linkHoverStyle)}
+                          onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
+                        >
+                          {location()} ↗
+                        </a>
+                      )}
+                    </Show>
+                  </div>
+                );
+              }}
             </Show>
 
             <Show when={batcher().fnSource}>

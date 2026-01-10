@@ -1,7 +1,8 @@
-export { getRegistry, initRegistry, useStore } from './core/registry';
+export { getRegistry, initRegistry, useStore, configure } from './core/registry';
 export type {
   BatcherInfo,
   BatchInfo,
+  DevtoolsConfig,
   DevtoolsRegistry,
   DevtoolsStore,
   TraceEvent,

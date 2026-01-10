@@ -1,6 +1,6 @@
 import { render } from 'solid-js/web';
 import { Panel, type PanelProps } from './components/Panel';
-import { initRegistry } from './core/registry';
+import { initRegistry, configure } from './core/registry';
 
 export interface MountOptions {
   position?: 'right' | 'bottom' | 'left';
@@ -9,6 +9,8 @@ export interface MountOptions {
   buttonClass?: string;
   panelStyle?: Record<string, string>;
   panelClass?: string;
+  projectRoot?: string;
+  editor?: 'vscode' | 'cursor' | 'webstorm' | 'idea';
 }
 
 export function mount(
@@ -20,6 +22,13 @@ export function mount(
   }
 
   initRegistry();
+
+  if (options?.projectRoot || options?.editor) {
+    configure({
+      projectRoot: options.projectRoot,
+      editor: options.editor,
+    });
+  }
 
   const props: PanelProps = {
     position: options?.position,
