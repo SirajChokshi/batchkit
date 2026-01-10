@@ -19,24 +19,51 @@ export interface PanelProps {
   panelClass?: string;
 }
 
-const DRAWER_WIDTH = '650px';
-const DRAWER_HEIGHT = '350px';
+const STORAGE_KEY = 'batchkit-devtools';
+const DEFAULT_WIDTH = 650;
+const DEFAULT_HEIGHT = 350;
+const MIN_SIZE = 200;
+const MAX_SIZE = 1200;
 const TRANSITION_DURATION = '0.2s';
 
-function getDrawerBaseStyle(position: Position): JSX.CSSProperties {
+interface StoredState {
+  isOpen?: boolean;
+  width?: number;
+  height?: number;
+}
+
+function loadState(): StoredState {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveState(state: StoredState): void {
+  try {
+    const current = loadState();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...state }));
+  } catch {
+    // ignore
+  }
+}
+
+function getDrawerBaseStyle(position: Position, size: number, isResizing: boolean): JSX.CSSProperties {
   const base: JSX.CSSProperties = {
-  position: 'fixed',
-  background: '#0c0a09',
+    position: 'fixed',
+    background: '#0c0a09',
     'border-color': '#44403c',
     'border-style': 'solid',
     'border-width': '0',
-  display: 'flex',
-  'flex-direction': 'column',
-  overflow: 'hidden',
-  'z-index': '99998',
-  'font-family': 'ui-monospace, monospace',
-  color: '#d6d3d1',
-    transition: `transform ${TRANSITION_DURATION} ease-out`,
+    display: 'flex',
+    'flex-direction': 'column',
+    overflow: 'hidden',
+    'z-index': '99998',
+    'font-family': 'ui-monospace, monospace',
+    color: '#d6d3d1',
+    transition: isResizing ? 'none' : `transform ${TRANSITION_DURATION} ease-out`,
     'box-shadow': '0 0 10px 0 rgba(0, 0, 0, 0.1)',
   };
 
@@ -46,20 +73,18 @@ function getDrawerBaseStyle(position: Position): JSX.CSSProperties {
         ...base,
         top: '0',
         right: '0',
-        width: DRAWER_WIDTH,
+        width: `${size}px`,
         height: '100vh',
         'border-left-width': '1px',
-        'box-shadow': '0 0 10px 0 rgba(0, 0, 0, 0.1)',
       };
     case 'left':
       return {
         ...base,
         top: '0',
         left: '0',
-        width: DRAWER_WIDTH,
+        width: `${size}px`,
         height: '100vh',
         'border-right-width': '1px',
-        'box-shadow': '0 0 10px 0 rgba(0, 0, 0, 0.1)',
       };
     case 'bottom':
       return {
@@ -68,9 +93,46 @@ function getDrawerBaseStyle(position: Position): JSX.CSSProperties {
         left: '0',
         right: '0',
         width: '100%',
-        height: DRAWER_HEIGHT,
+        height: `${size}px`,
         'border-top-width': '1px',
-        'box-shadow': '0 0 10px 0 rgba(0, 0, 0, 0.1)',
+      };
+  }
+}
+
+function getResizeHandleStyle(position: Position): JSX.CSSProperties {
+  const base: JSX.CSSProperties = {
+    position: 'absolute',
+    background: 'transparent',
+    'z-index': '99999',
+  };
+
+  switch (position) {
+    case 'right':
+      return {
+        ...base,
+        left: '0',
+        top: '0',
+        bottom: '0',
+        width: '6px',
+        cursor: 'ew-resize',
+      };
+    case 'left':
+      return {
+        ...base,
+        right: '0',
+        top: '0',
+        bottom: '0',
+        width: '6px',
+        cursor: 'ew-resize',
+      };
+    case 'bottom':
+      return {
+        ...base,
+        top: '0',
+        left: '0',
+        right: '0',
+        height: '6px',
+        cursor: 'ns-resize',
       };
   }
 }
@@ -190,16 +252,73 @@ const contentAreaStyle: JSX.CSSProperties = {
 export const Panel: Component<PanelProps> = (props) => {
   const store = useStore();
   const [activeTab, setActiveTab] = createSignal<TabId>('timeline');
+  const [isResizing, setIsResizing] = createSignal(false);
   const position = () => props.position ?? 'right';
 
+  const isHorizontal = () => position() === 'bottom';
+  const defaultSize = () => isHorizontal() ? DEFAULT_HEIGHT : DEFAULT_WIDTH;
+
+  const [size, setSize] = createSignal(defaultSize());
+
   onMount(() => {
-    if (props.defaultOpen) {
+    const stored = loadState();
+
+    if (stored.isOpen !== undefined) {
+      if (stored.isOpen) {
+        getRegistry().open();
+      }
+    } else if (props.defaultOpen) {
       getRegistry().open();
+    }
+
+    const storedSize = isHorizontal() ? stored.height : stored.width;
+    if (storedSize && storedSize >= MIN_SIZE && storedSize <= MAX_SIZE) {
+      setSize(storedSize);
     }
   });
 
   const handleToggle = () => {
     getRegistry().toggle();
+    saveState({ isOpen: !store().isOpen });
+  };
+
+  const handleResizeStart = (e: MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+
+    const startPos = isHorizontal() ? e.clientY : e.clientX;
+    const startSize = size();
+    const pos = position();
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const currentPos = isHorizontal() ? moveEvent.clientY : moveEvent.clientX;
+      let delta = startPos - currentPos;
+
+      if (pos === 'left') {
+        delta = -delta;
+      }
+      if (pos === 'bottom') {
+        delta = delta;
+      }
+
+      const newSize = Math.min(MAX_SIZE, Math.max(MIN_SIZE, startSize + delta));
+      setSize(newSize);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+
+      saveState(isHorizontal() ? { height: size() } : { width: size() });
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = isHorizontal() ? 'ns-resize' : 'ew-resize';
+    document.body.style.userSelect = 'none';
   };
 
   const handleClear = () => {
@@ -230,7 +349,7 @@ export const Panel: Component<PanelProps> = (props) => {
   };
 
   const drawerStyle = (): JSX.CSSProperties => ({
-    ...getDrawerBaseStyle(position()),
+    ...getDrawerBaseStyle(position(), size(), isResizing()),
     transform: getTransform(position(), store().isOpen),
     ...props.panelStyle,
   });
@@ -245,6 +364,12 @@ export const Panel: Component<PanelProps> = (props) => {
       />
 
       <div class={props.panelClass} style={drawerStyle()}>
+          <div
+            style={getResizeHandleStyle(position())}
+            onMouseDown={handleResizeStart}
+            onMouseOver={(e) => e.currentTarget.style.background = '#44403c'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+          />
           <div style={headerStyle}>
             <div style={titleStyle}>
               <span style={{ color: '#78716c' }}>[=]</span>
