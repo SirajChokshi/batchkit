@@ -211,6 +211,12 @@ export const Panel: Component<PanelProps> = (props) => {
   const events = () => store().events;
   const batches = () => store().batches;
 
+  const selectedBatcherInfo = () => {
+    const selected = selectedBatcher();
+    if (!selected) return null;
+    return batchers().get(selected) ?? null;
+  };
+
   const filteredEvents = () => {
     const selected = selectedBatcher();
     if (!selected) return events();
@@ -292,7 +298,7 @@ export const Panel: Component<PanelProps> = (props) => {
               {activeTab() === 'timeline' && <Timeline batches={filteredBatches()} />}
               {activeTab() === 'events' && <EventLog events={filteredEvents()} />}
               {activeTab() === 'stats' && <Stats events={filteredEvents()} batches={filteredBatches()} />}
-              {activeTab() === 'trace' && <Trace batcher={selectedBatcher() ? batchers().get(selectedBatcher()!) ?? null : null} />}
+              {activeTab() === 'trace' && <Trace batcher={selectedBatcherInfo()} />}
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { Component, JSX } from 'solid-js';
+import { Component, JSX, Show } from 'solid-js';
 import type { BatcherInfo } from '../core/types';
 
 interface TraceProps {
@@ -58,53 +58,56 @@ const nameStyle: JSX.CSSProperties = {
 };
 
 export const Trace: Component<TraceProps> = (props) => {
-  const batcher = () => props.batcher;
-
   return (
     <div style={containerStyle}>
-      {!batcher() ? (
-        <div style={emptyStyle}>
-          <div style={{ 'font-size': '11px', color: '#78716c', 'margin-bottom': '4px' }}>
-            No batcher selected
-          </div>
-          <div style={{ 'font-size': '11px', color: '#57534e' }}>
-            Click a batcher to see its trace info
-          </div>
-        </div>
-      ) : (
-        <>
-          <div style={nameStyle}>
-            {batcher()!.name}
-            {batcher()!.isUnnamed && (
-              <span style={{ color: '#78716c', 'font-weight': 'normal', 'font-style': 'italic' }}>
-                {' '}(unnamed)
-              </span>
-            )}
-          </div>
-
-          {batcher()!.location && (
-            <div style={sectionStyle}>
-              <div style={labelStyle}>Location</div>
-              <div style={valueStyle}>{batcher()!.location}</div>
+      <Show
+        when={props.batcher}
+        fallback={
+          <div style={emptyStyle}>
+            <div style={{ 'font-size': '11px', color: '#78716c', 'margin-bottom': '4px' }}>
+              No batcher selected
             </div>
-          )}
-
-          {batcher()!.fnSource && (
-            <div style={sectionStyle}>
-              <div style={labelStyle}>Function</div>
-              <div style={codeStyle}>{batcher()!.fnSource}</div>
+            <div style={{ 'font-size': '11px', color: '#57534e' }}>
+              Click a batcher to see its trace info
             </div>
-          )}
+          </div>
+        }
+      >
+        {(batcher) => (
+          <>
+            <div style={nameStyle}>
+              {batcher().name}
+              {batcher().isUnnamed && (
+                <span style={{ color: '#78716c', 'font-weight': 'normal', 'font-style': 'italic' }}>
+                  {' '}(unnamed)
+                </span>
+              )}
+            </div>
 
-          {!batcher()!.location && !batcher()!.fnSource && (
-            <div style={{ ...emptyStyle, height: 'auto', padding: '24px 0' }}>
-              <div style={{ 'font-size': '11px', color: '#57534e' }}>
-                No trace metadata available
+            <Show when={batcher().location}>
+              <div style={sectionStyle}>
+                <div style={labelStyle}>Location</div>
+                <div style={valueStyle}>{batcher().location}</div>
               </div>
-            </div>
-          )}
-        </>
-      )}
+            </Show>
+
+            <Show when={batcher().fnSource}>
+              <div style={sectionStyle}>
+                <div style={labelStyle}>Function</div>
+                <div style={codeStyle}>{batcher().fnSource}</div>
+              </div>
+            </Show>
+
+            <Show when={!batcher().location && !batcher().fnSource}>
+              <div style={{ ...emptyStyle, height: 'auto', padding: '24px 0' }}>
+                <div style={{ 'font-size': '11px', color: '#57534e' }}>
+                  No trace metadata available
+                </div>
+              </div>
+            </Show>
+          </>
+        )}
+      </Show>
     </div>
   );
 };
