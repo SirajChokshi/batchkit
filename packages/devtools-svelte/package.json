@@ -35,12 +35,11 @@
     "directory": "packages/devtools-svelte"
   },
   "peerDependencies": {
+    "batchkit-devtools": "*",
     "svelte": ">=5.0.0"
   },
-  "dependencies": {
-    "batchkit-devtools": "workspace:*"
-  },
   "devDependencies": {
+    "batchkit-devtools": "workspace:*",
     "@sveltejs/package": "^2.3.0",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
