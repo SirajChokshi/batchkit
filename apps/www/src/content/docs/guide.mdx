@@ -166,7 +166,7 @@ If 250 keys are queued, batchkit makes three calls: 100, 100, then 50.
 users.abort()
 ```
 
-All pending requests reject with an `AbortError`. The signal passed to your batch function is also aborted.
+All pending and in-flight requests reject with an `AbortError`. The signal passed to your batch function is also aborted.
 
 ### Cancel one request
 
