@@ -1,6 +1,6 @@
 import { render } from 'solid-js/web';
 import { Panel, type PanelProps } from './components/Panel';
-import { initRegistry, configure } from './core/registry';
+import { configure, initRegistry } from './core/registry';
 
 export interface MountOptions {
   position?: 'right' | 'bottom' | 'left';

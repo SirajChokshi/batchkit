@@ -1,4 +1,9 @@
-export { getRegistry, initRegistry, useStore, configure } from './core/registry';
+export {
+  configure,
+  getRegistry,
+  initRegistry,
+  useStore,
+} from './core/registry';
 export type {
   BatcherInfo,
   BatchInfo,
