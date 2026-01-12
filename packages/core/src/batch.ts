@@ -44,10 +44,31 @@ export function batch<K, V>(
 
   let queue: PendingRequest<K, V>[] = [];
   const pendingKeys = new Set<unknown>();
+  const activeRequests = new Set<PendingRequest<K, V>>();
   let cleanup: (() => void) | null = null;
   let isScheduled = false;
-  let currentAbortController: AbortController | null = null;
-  let inFlightRequests: PendingRequest<K, V>[] = [];
+
+  interface InFlightChunk {
+    readonly batchId: string;
+    readonly controller: AbortController;
+    readonly requests: readonly PendingRequest<K, V>[];
+  }
+
+  const inFlightChunks = new Set<InFlightChunk>();
+  const requestToInFlightChunk = new WeakMap<
+    PendingRequest<K, V>,
+    InFlightChunk
+  >();
+
+  function createAbortError(): DOMException {
+    return new DOMException('Aborted', 'AbortError');
+  }
+
+  function rejectAsAborted(request: PendingRequest<K, V>): void {
+    if (request.aborted) return;
+    request.aborted = true;
+    request.reject(createAbortError());
+  }
 
   function scheduleDispatch(): void {
     if (isScheduled || queue.length === 0) return;
@@ -83,6 +104,9 @@ export function batch<K, V>(
     isScheduled = false;
 
     const batch = activeQueue;
+    for (const request of batch) {
+      activeRequests.add(request);
+    }
     queue = [];
     pendingKeys.clear();
 
@@ -125,16 +149,19 @@ export function batch<K, V>(
 
     if (uniqueKeys.length === 0) return;
 
-    inFlightRequests = chunk;
-
     tracer.emit({
       type: 'dispatch',
       batchId,
       keys: uniqueKeys,
     });
 
-    currentAbortController = new AbortController();
-    const signal = currentAbortController.signal;
+    const controller = new AbortController();
+    const signal = controller.signal;
+    const inFlight: InFlightChunk = { batchId, controller, requests: chunk };
+    inFlightChunks.add(inFlight);
+    for (const request of chunk) {
+      requestToInFlightChunk.set(request, inFlight);
+    }
 
     const startedAt = performance.now();
 
@@ -147,10 +174,7 @@ export function batch<K, V>(
         tracer.emit({ type: 'abort', batchId });
         for (const requests of keyToRequests.values()) {
           for (const request of requests) {
-            if (!request.aborted) {
-              request.aborted = true;
-              request.reject(new DOMException('Aborted', 'AbortError'));
-            }
+            rejectAsAborted(request);
           }
         }
         return;
@@ -229,8 +253,7 @@ export function batch<K, V>(
         }
       }
     } finally {
-      currentAbortController = null;
-      inFlightRequests = [];
+      inFlightChunks.delete(inFlight);
     }
   }
 
@@ -254,11 +277,16 @@ export function batch<K, V>(
     return new Promise<V>((resolvePromise, rejectPromise) => {
       let settled = false;
       let removeAbortListener: (() => void) | null = null;
+      let request: PendingRequest<K, V> | null = null;
 
       const resolve = (value: V) => {
         if (settled) return;
         settled = true;
         removeAbortListener?.();
+        if (request) {
+          activeRequests.delete(request);
+          requestToInFlightChunk.delete(request);
+        }
         resolvePromise(value);
       };
 
@@ -266,10 +294,14 @@ export function batch<K, V>(
         if (settled) return;
         settled = true;
         removeAbortListener?.();
+        if (request) {
+          activeRequests.delete(request);
+          requestToInFlightChunk.delete(request);
+        }
         rejectPromise(error);
       };
 
-      const request: PendingRequest<K, V> = {
+      request = {
         key,
         resolve,
         reject,
@@ -281,19 +313,29 @@ export function batch<K, V>(
 
       if (externalSignal) {
         const onAbort = () => {
+          const inFlight = requestToInFlightChunk.get(request);
           request.aborted = true;
-          reject(new DOMException('Aborted', 'AbortError'));
+          reject(createAbortError());
 
-          const allPendingAborted = queue.every((r) => r.aborted);
-          const allInFlightAborted =
-            inFlightRequests.length > 0 &&
-            inFlightRequests.every((r) => r.aborted);
-          if (
-            allPendingAborted &&
-            allInFlightAborted &&
-            currentAbortController
-          ) {
-            currentAbortController.abort();
+          if (inFlight) {
+            const allChunkRequestsAborted = inFlight.requests.every(
+              (r) => r.aborted,
+            );
+            if (allChunkRequestsAborted) {
+              inFlight.controller.abort();
+            }
+          } else {
+            const allQueuedAborted =
+              queue.length > 0 && queue.every((r) => r.aborted);
+            if (allQueuedAborted) {
+              queue = [];
+              pendingKeys.clear();
+              if (cleanup) {
+                cleanup();
+                cleanup = null;
+              }
+              isScheduled = false;
+            }
           }
         };
 
@@ -327,23 +369,17 @@ export function batch<K, V>(
 
   function abort(): void {
     for (const request of queue) {
-      if (!request.aborted) {
-        request.aborted = true;
-        request.reject(new DOMException('Aborted', 'AbortError'));
-      }
+      rejectAsAborted(request);
     }
 
-    for (const request of inFlightRequests) {
-      if (!request.aborted) {
-        request.aborted = true;
-        request.reject(new DOMException('Aborted', 'AbortError'));
-      }
+    for (const request of activeRequests) {
+      rejectAsAborted(request);
     }
     queue = [];
     pendingKeys.clear();
 
-    if (currentAbortController) {
-      currentAbortController.abort();
+    for (const chunk of inFlightChunks) {
+      chunk.controller.abort();
     }
 
     if (cleanup) {
