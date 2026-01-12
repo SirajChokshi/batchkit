@@ -579,6 +579,50 @@ describe('batch', () => {
   });
 
   describe('abort edge cases', () => {
+    it('should remove per-request abort listener after request settles', async () => {
+      const originalAdd = AbortSignal.prototype.addEventListener;
+      const originalRemove = AbortSignal.prototype.removeEventListener;
+
+      const addCalls: unknown[] = [];
+      const removeCalls: unknown[] = [];
+
+      (AbortSignal.prototype as unknown as Record<string, unknown>).addEventListener =
+        function (...args: unknown[]) {
+          addCalls.push(args);
+          return (originalAdd as unknown as (...a: unknown[]) => unknown).apply(
+            this,
+            args,
+          );
+        };
+
+      (AbortSignal.prototype as unknown as Record<string, unknown>).removeEventListener =
+        function (...args: unknown[]) {
+          removeCalls.push(args);
+          return (originalRemove as unknown as (...a: unknown[]) => unknown).apply(
+            this,
+            args,
+          );
+        };
+
+      try {
+        const items = batch(
+          async (keys: string[]) => keys.map((k) => ({ id: k })),
+          'id',
+        );
+
+        const controller = new AbortController();
+        await items.get('a', { signal: controller.signal });
+
+        expect(addCalls.length).toBe(1);
+        expect(removeCalls.length).toBe(1);
+      } finally {
+        (AbortSignal.prototype as unknown as Record<string, unknown>).addEventListener =
+          originalAdd as unknown as never;
+        (AbortSignal.prototype as unknown as Record<string, unknown>).removeEventListener =
+          originalRemove as unknown as never;
+      }
+    });
+
     it('should abort underlying batch function when all per-request signals abort', async () => {
       let capturedSignal: AbortSignal | null = null;
 

@@ -244,10 +244,27 @@ export function batch<K, V>(
     }
 
     return new Promise<V>((resolve, reject) => {
+      let settled = false;
+      let removeAbortListener: (() => void) | null = null;
+
+      const safeResolve = (value: V) => {
+        if (settled) return;
+        settled = true;
+        removeAbortListener?.();
+        resolve(value);
+      };
+
+      const safeReject = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        removeAbortListener?.();
+        reject(error);
+      };
+
       const request: PendingRequest<K, V> = {
         key,
-        resolve,
-        reject,
+        resolve: safeResolve,
+        reject: safeReject,
         signal: externalSignal,
         aborted: false,
       };
@@ -257,7 +274,7 @@ export function batch<K, V>(
       if (externalSignal) {
         const onAbort = () => {
           request.aborted = true;
-          reject(new DOMException('Aborted', 'AbortError'));
+          safeReject(new DOMException('Aborted', 'AbortError'));
 
           const allPendingAborted = queue.every((r) => r.aborted);
           const allInFlightAborted =
@@ -273,6 +290,9 @@ export function batch<K, V>(
         };
 
         externalSignal.addEventListener('abort', onAbort, { once: true });
+        removeAbortListener = () => {
+          externalSignal.removeEventListener('abort', onAbort);
+        };
       }
 
       scheduleDispatch();
