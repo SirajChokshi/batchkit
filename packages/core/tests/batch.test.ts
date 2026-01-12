@@ -580,13 +580,10 @@ describe('batch', () => {
 
   describe('abort edge cases', () => {
     it('should reject in-flight requests when abort is called even if batch function ignores signal', async () => {
-      const items = batch(
-        async (keys: string[], _signal: AbortSignal) => {
-          await new Promise((r) => setTimeout(r, 50));
-          return keys.map((k) => ({ id: k }));
-        },
-        'id',
-      );
+      const items = batch(async (keys: string[], _signal: AbortSignal) => {
+        await new Promise((r) => setTimeout(r, 50));
+        return keys.map((k) => ({ id: k }));
+      }, 'id');
 
       const promise = items.get('a');
 
