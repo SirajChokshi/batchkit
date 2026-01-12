@@ -2,9 +2,7 @@ import { BatchError } from './errors';
 import { indexed } from './indexed';
 import type { Match, MatchFn } from './types';
 
-export function isIndexed<K, V>(
-  match: Match<K, V>,
-): match is typeof indexed {
+export function isIndexed<K, V>(match: Match<K, V>): match is typeof indexed {
   return match === indexed;
 }
 
