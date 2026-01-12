@@ -3,7 +3,10 @@ export type BatchFn<K, V> = (
   signal: AbortSignal,
 ) => Promise<V[] | Record<string, V>>;
 
-export type Match<K, V> = keyof V | symbol | MatchFn<K, V>;
+export type Match<K, V> =
+  | keyof V
+  | typeof import('./indexed').indexed
+  | MatchFn<K, V>;
 
 export type MatchFn<K, V> = (results: V[], key: K) => V | undefined;
 
