@@ -591,7 +591,7 @@ describe('batch', () => {
         ...args: Parameters<AbortSignal['addEventListener']>
       ): void {
         addCalls.push(args);
-        return originalAdd.call(this, ...args);
+        originalAdd.call(this, ...args);
       };
 
       AbortSignal.prototype.removeEventListener = function (
@@ -599,7 +599,7 @@ describe('batch', () => {
         ...args: Parameters<AbortSignal['removeEventListener']>
       ): void {
         removeCalls.push(args);
-        return originalRemove.call(this, ...args);
+        originalRemove.call(this, ...args);
       };
 
       try {
