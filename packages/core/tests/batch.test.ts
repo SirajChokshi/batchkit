@@ -604,6 +604,120 @@ describe('batch', () => {
       expect((result as DOMException).name).toBe('AbortError');
     });
 
+    it('should abort all overlapping in-flight batches', async () => {
+      let releaseA!: () => void;
+      let releaseB!: () => void;
+
+      const gateA = new Promise<void>((resolve) => {
+        releaseA = () => resolve();
+      });
+      const gateB = new Promise<void>((resolve) => {
+        releaseB = () => resolve();
+      });
+
+      const fn = mock(async (keys: string[], _signal: AbortSignal) => {
+        if (keys[0] === 'a') {
+          await gateA;
+        } else {
+          await gateB;
+        }
+        return keys.map((k) => ({ id: k }));
+      });
+
+      const items = batch(fn, 'id');
+
+      const promiseA = items.get('a');
+      await Promise.resolve(); // allow microtask dispatch
+
+      const promiseB = items.get('b');
+      await Promise.resolve(); // allow second dispatch
+
+      items.abort();
+
+      releaseA();
+      releaseB();
+
+      const [resultA, resultB] = await Promise.all([
+        Promise.race([
+          promiseA.then(
+            () => 'fulfilled' as const,
+            (e) => e as unknown,
+          ),
+          new Promise((r) => setTimeout(() => r('timeout' as const), 250)),
+        ]),
+        Promise.race([
+          promiseB.then(
+            () => 'fulfilled' as const,
+            (e) => e as unknown,
+          ),
+          new Promise((r) => setTimeout(() => r('timeout' as const), 250)),
+        ]),
+      ]);
+
+      expect(resultA).not.toBe('timeout');
+      expect(resultB).not.toBe('timeout');
+      expect(resultA).not.toBe('fulfilled');
+      expect(resultB).not.toBe('fulfilled');
+
+      expect(resultA).toBeInstanceOf(DOMException);
+      expect((resultA as DOMException).name).toBe('AbortError');
+
+      expect(resultB).toBeInstanceOf(DOMException);
+      expect((resultB as DOMException).name).toBe('AbortError');
+    });
+
+    it('should abort requests in later chunks when max splits a batch', async () => {
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = () => resolve();
+      });
+
+      const fn = mock(async (keys: string[], _signal: AbortSignal) => {
+        await gate;
+        return keys.map((k) => ({ id: k }));
+      });
+
+      const items = batch(fn, 'id', { max: 1 });
+
+      const promiseA = items.get('a');
+      const promiseB = items.get('b');
+
+      await Promise.resolve(); // allow dispatch to start first chunk
+      items.abort();
+
+      release();
+
+      const [resultA, resultB] = await Promise.all([
+        Promise.race([
+          promiseA.then(
+            () => 'fulfilled' as const,
+            (e) => e as unknown,
+          ),
+          new Promise((r) => setTimeout(() => r('timeout' as const), 250)),
+        ]),
+        Promise.race([
+          promiseB.then(
+            () => 'fulfilled' as const,
+            (e) => e as unknown,
+          ),
+          new Promise((r) => setTimeout(() => r('timeout' as const), 250)),
+        ]),
+      ]);
+
+      expect(resultA).not.toBe('timeout');
+      expect(resultB).not.toBe('timeout');
+      expect(resultA).not.toBe('fulfilled');
+      expect(resultB).not.toBe('fulfilled');
+
+      expect(resultA).toBeInstanceOf(DOMException);
+      expect((resultA as DOMException).name).toBe('AbortError');
+
+      expect(resultB).toBeInstanceOf(DOMException);
+      expect((resultB as DOMException).name).toBe('AbortError');
+
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
     it('should remove per-request abort listener after request settles', async () => {
       const originalAdd = AbortSignal.prototype.addEventListener;
       const originalRemove = AbortSignal.prototype.removeEventListener;
