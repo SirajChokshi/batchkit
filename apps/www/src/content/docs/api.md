@@ -23,7 +23,7 @@ function batch<K, V>(
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `fn` | `(keys, signal) => Promise` | Batch function that fetches multiple items |
-| `match` | `string \| symbol \| function` | How to match results to keys |
+| `match` | `keyof V \| typeof indexed \| function` | How to match results to keys |
 | `options` | `BatchOptions` | Optional configuration |
 
 ### BatchOptions
@@ -78,7 +78,7 @@ The name passed to `batch()`, if any.
 
 ## indexed
 
-Symbol for matching object/record responses.
+Symbol for matching object/record responses. This is the only supported symbol match.
 
 ```typescript
 import { batch, indexed } from 'batchkit'

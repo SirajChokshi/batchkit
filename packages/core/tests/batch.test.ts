@@ -566,6 +566,16 @@ describe('batch', () => {
       expect(result).toBeInstanceOf(BatchError);
       expect(result.message).toContain('non-array');
     });
+
+    it('should throw BatchError for unsupported symbol match', () => {
+      const unsupported = Symbol('unsupported');
+      expect(() =>
+        batch(
+          async (keys: string[]) => keys.map((k) => ({ id: k })),
+          unsupported as unknown as never,
+        ),
+      ).toThrow(BatchError);
+    });
   });
 
   describe('abort edge cases', () => {

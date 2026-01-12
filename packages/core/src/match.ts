@@ -1,7 +1,8 @@
+import { BatchError } from './errors';
 import { indexed } from './indexed';
 import type { Match, MatchFn } from './types';
 
-export function isIndexed<K, V>(match: Match<K, V>): match is symbol {
+export function isIndexed<K, V>(match: Match<K, V>): match is typeof indexed {
   return match === indexed;
 }
 
@@ -13,6 +14,12 @@ export function normalizeMatch<K, V>(match: Match<K, V>): MatchFn<K, V> | null {
   if (isIndexed(match)) {
     // Indexed matching is handled separately
     return null;
+  }
+
+  if (typeof match === 'symbol') {
+    throw new BatchError(
+      'Unsupported symbol match. Use `indexed` for Record responses.',
+    );
   }
 
   if (isKeyMatch<K, V>(match)) {
