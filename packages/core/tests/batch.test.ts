@@ -583,26 +583,24 @@ describe('batch', () => {
       const originalAdd = AbortSignal.prototype.addEventListener;
       const originalRemove = AbortSignal.prototype.removeEventListener;
 
-      const addCalls: unknown[] = [];
-      const removeCalls: unknown[] = [];
+      const addCalls: Parameters<AbortSignal['addEventListener']>[] = [];
+      const removeCalls: Parameters<AbortSignal['removeEventListener']>[] = [];
 
-      (AbortSignal.prototype as unknown as Record<string, unknown>).addEventListener =
-        function (...args: unknown[]) {
-          addCalls.push(args);
-          return (originalAdd as unknown as (...a: unknown[]) => unknown).apply(
-            this,
-            args,
-          );
-        };
+      AbortSignal.prototype.addEventListener = function (
+        this: AbortSignal,
+        ...args: Parameters<AbortSignal['addEventListener']>
+      ): void {
+        addCalls.push(args);
+        return originalAdd.call(this, ...args);
+      };
 
-      (AbortSignal.prototype as unknown as Record<string, unknown>).removeEventListener =
-        function (...args: unknown[]) {
-          removeCalls.push(args);
-          return (originalRemove as unknown as (...a: unknown[]) => unknown).apply(
-            this,
-            args,
-          );
-        };
+      AbortSignal.prototype.removeEventListener = function (
+        this: AbortSignal,
+        ...args: Parameters<AbortSignal['removeEventListener']>
+      ): void {
+        removeCalls.push(args);
+        return originalRemove.call(this, ...args);
+      };
 
       try {
         const items = batch(
@@ -616,10 +614,8 @@ describe('batch', () => {
         expect(addCalls.length).toBe(1);
         expect(removeCalls.length).toBe(1);
       } finally {
-        (AbortSignal.prototype as unknown as Record<string, unknown>).addEventListener =
-          originalAdd as unknown as never;
-        (AbortSignal.prototype as unknown as Record<string, unknown>).removeEventListener =
-          originalRemove as unknown as never;
+        AbortSignal.prototype.addEventListener = originalAdd;
+        AbortSignal.prototype.removeEventListener = originalRemove;
       }
     });
 

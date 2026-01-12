@@ -243,28 +243,28 @@ export function batch<K, V>(
       pendingKeys.add(cacheKey);
     }
 
-    return new Promise<V>((resolve, reject) => {
+    return new Promise<V>((resolvePromise, rejectPromise) => {
       let settled = false;
       let removeAbortListener: (() => void) | null = null;
 
-      const safeResolve = (value: V) => {
+      const resolve = (value: V) => {
         if (settled) return;
         settled = true;
         removeAbortListener?.();
-        resolve(value);
+        resolvePromise(value);
       };
 
-      const safeReject = (error: Error) => {
+      const reject = (error: Error) => {
         if (settled) return;
         settled = true;
         removeAbortListener?.();
-        reject(error);
+        rejectPromise(error);
       };
 
       const request: PendingRequest<K, V> = {
         key,
-        resolve: safeResolve,
-        reject: safeReject,
+        resolve,
+        reject,
         signal: externalSignal,
         aborted: false,
       };
@@ -274,7 +274,7 @@ export function batch<K, V>(
       if (externalSignal) {
         const onAbort = () => {
           request.aborted = true;
-          safeReject(new DOMException('Aborted', 'AbortError'));
+          reject(new DOMException('Aborted', 'AbortError'));
 
           const allPendingAborted = queue.every((r) => r.aborted);
           const allInFlightAborted =
