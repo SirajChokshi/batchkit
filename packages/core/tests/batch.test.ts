@@ -607,6 +607,46 @@ describe('batch', () => {
       expect((result as DOMException).name).toBe('AbortError');
     });
 
+    it('should remove per-request abort listener after request settles', async () => {
+      const originalAdd = AbortSignal.prototype.addEventListener;
+      const originalRemove = AbortSignal.prototype.removeEventListener;
+
+      const addCalls: Parameters<AbortSignal['addEventListener']>[] = [];
+      const removeCalls: Parameters<AbortSignal['removeEventListener']>[] = [];
+
+      AbortSignal.prototype.addEventListener = function (
+        this: AbortSignal,
+        ...args: Parameters<AbortSignal['addEventListener']>
+      ): void {
+        addCalls.push(args);
+        originalAdd.call(this, ...args);
+      };
+
+      AbortSignal.prototype.removeEventListener = function (
+        this: AbortSignal,
+        ...args: Parameters<AbortSignal['removeEventListener']>
+      ): void {
+        removeCalls.push(args);
+        originalRemove.call(this, ...args);
+      };
+
+      try {
+        const items = batch(
+          async (keys: string[]) => keys.map((k) => ({ id: k })),
+          'id',
+        );
+
+        const controller = new AbortController();
+        await items.get('a', { signal: controller.signal });
+
+        expect(addCalls.length).toBe(1);
+        expect(removeCalls.length).toBe(1);
+      } finally {
+        AbortSignal.prototype.addEventListener = originalAdd;
+        AbortSignal.prototype.removeEventListener = originalRemove;
+      }
+    });
+
     it('should abort underlying batch function when all per-request signals abort', async () => {
       let capturedSignal: AbortSignal | null = null;
 

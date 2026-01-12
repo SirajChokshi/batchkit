@@ -251,7 +251,24 @@ export function batch<K, V>(
       pendingKeys.add(cacheKey);
     }
 
-    return new Promise<V>((resolve, reject) => {
+    return new Promise<V>((resolvePromise, rejectPromise) => {
+      let settled = false;
+      let removeAbortListener: (() => void) | null = null;
+
+      const resolve = (value: V) => {
+        if (settled) return;
+        settled = true;
+        removeAbortListener?.();
+        resolvePromise(value);
+      };
+
+      const reject = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        removeAbortListener?.();
+        rejectPromise(error);
+      };
+
       const request: PendingRequest<K, V> = {
         key,
         resolve,
@@ -281,6 +298,9 @@ export function batch<K, V>(
         };
 
         externalSignal.addEventListener('abort', onAbort, { once: true });
+        removeAbortListener = () => {
+          externalSignal.removeEventListener('abort', onAbort);
+        };
       }
 
       scheduleDispatch();
