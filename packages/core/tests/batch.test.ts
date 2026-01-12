@@ -605,14 +605,14 @@ describe('batch', () => {
     });
 
     it('should abort all overlapping in-flight batches', async () => {
-      let releaseA: (() => void) | null = null;
-      let releaseB: (() => void) | null = null;
+      let releaseA!: () => void;
+      let releaseB!: () => void;
 
       const gateA = new Promise<void>((resolve) => {
-        releaseA = resolve;
+        releaseA = () => resolve();
       });
       const gateB = new Promise<void>((resolve) => {
-        releaseB = resolve;
+        releaseB = () => resolve();
       });
 
       const fn = mock(async (keys: string[], _signal: AbortSignal) => {
@@ -634,8 +634,8 @@ describe('batch', () => {
 
       items.abort();
 
-      releaseA?.();
-      releaseB?.();
+      releaseA();
+      releaseB();
 
       const [resultA, resultB] = await Promise.all([
         Promise.race([
@@ -667,9 +667,9 @@ describe('batch', () => {
     });
 
     it('should abort requests in later chunks when max splits a batch', async () => {
-      let release: (() => void) | null = null;
+      let release!: () => void;
       const gate = new Promise<void>((resolve) => {
-        release = resolve;
+        release = () => resolve();
       });
 
       const fn = mock(async (keys: string[], _signal: AbortSignal) => {
@@ -685,7 +685,7 @@ describe('batch', () => {
       await Promise.resolve(); // allow dispatch to start first chunk
       items.abort();
 
-      release?.();
+      release();
 
       const [resultA, resultB] = await Promise.all([
         Promise.race([

@@ -277,16 +277,14 @@ export function batch<K, V>(
     return new Promise<V>((resolvePromise, rejectPromise) => {
       let settled = false;
       let removeAbortListener: (() => void) | null = null;
-      let request: PendingRequest<K, V> | null = null;
+      let request!: PendingRequest<K, V>;
 
       const resolve = (value: V) => {
         if (settled) return;
         settled = true;
         removeAbortListener?.();
-        if (request) {
-          activeRequests.delete(request);
-          requestToInFlightChunk.delete(request);
-        }
+        activeRequests.delete(request);
+        requestToInFlightChunk.delete(request);
         resolvePromise(value);
       };
 
@@ -294,10 +292,8 @@ export function batch<K, V>(
         if (settled) return;
         settled = true;
         removeAbortListener?.();
-        if (request) {
-          activeRequests.delete(request);
-          requestToInFlightChunk.delete(request);
-        }
+        activeRequests.delete(request);
+        requestToInFlightChunk.delete(request);
         rejectPromise(error);
       };
 
