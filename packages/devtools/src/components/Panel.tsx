@@ -19,32 +19,37 @@ export interface PanelProps {
   panelClass?: string;
 }
 
-const STORAGE_KEY = 'batchkit-devtools';
+const STORAGE_PREFIX = '__batchkit_devtools_';
 const DEFAULT_WIDTH = 650;
 const DEFAULT_HEIGHT = 350;
 const MIN_SIZE = 200;
 const MAX_SIZE = 1200;
 const TRANSITION_DURATION = '0.2s';
 
-interface StoredState {
-  isOpen?: boolean;
-  width?: number;
-  height?: number;
-}
-
-function loadState(): StoredState {
+function getStoredBoolean(key: string): boolean | undefined {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : {};
+    const value = localStorage.getItem(STORAGE_PREFIX + key);
+    if (value === null) return undefined;
+    return value === 'true';
   } catch {
-    return {};
+    return undefined;
   }
 }
 
-function saveState(state: StoredState): void {
+function getStoredNumber(key: string): number | undefined {
   try {
-    const current = loadState();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...state }));
+    const value = localStorage.getItem(STORAGE_PREFIX + key);
+    if (value === null) return undefined;
+    const num = parseInt(value, 10);
+    return isNaN(num) ? undefined : num;
+  } catch {
+    return undefined;
+  }
+}
+
+function setStored(key: string, value: string | number | boolean): void {
+  try {
+    localStorage.setItem(STORAGE_PREFIX + key, String(value));
   } catch {
     // ignore
   }
@@ -261,17 +266,17 @@ export const Panel: Component<PanelProps> = (props) => {
   const [size, setSize] = createSignal(defaultSize());
 
   onMount(() => {
-    const stored = loadState();
+    const storedOpen = getStoredBoolean('isOpen');
 
-    if (stored.isOpen !== undefined) {
-      if (stored.isOpen) {
+    if (storedOpen !== undefined) {
+      if (storedOpen) {
         getRegistry().open();
       }
     } else if (props.defaultOpen) {
       getRegistry().open();
     }
 
-    const storedSize = isHorizontal() ? stored.height : stored.width;
+    const storedSize = getStoredNumber('panelSize');
     if (storedSize && storedSize >= MIN_SIZE && storedSize <= MAX_SIZE) {
       setSize(storedSize);
     }
@@ -279,7 +284,7 @@ export const Panel: Component<PanelProps> = (props) => {
 
   const handleToggle = () => {
     getRegistry().toggle();
-    saveState({ isOpen: !store().isOpen });
+    setStored('isOpen', store().isOpen);
   };
 
   const handleResizeStart = (e: MouseEvent) => {
@@ -312,7 +317,7 @@ export const Panel: Component<PanelProps> = (props) => {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
 
-      saveState(isHorizontal() ? { height: size() } : { width: size() });
+      setStored('panelSize', size());
     };
 
     document.addEventListener('mousemove', handleMouseMove);
