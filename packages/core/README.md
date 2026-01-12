@@ -92,7 +92,7 @@ await users.flush() // Don't wait for scheduler
 Abort the in-flight batch:
 
 ```typescript
-users.abort() // All pending requests reject with AbortError
+users.abort() // All pending and in-flight requests reject with AbortError
 ```
 
 ## Matching Results

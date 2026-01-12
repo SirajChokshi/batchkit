@@ -579,6 +579,31 @@ describe('batch', () => {
   });
 
   describe('abort edge cases', () => {
+    it('should reject in-flight requests when abort is called even if batch function ignores signal', async () => {
+      const items = batch(async (keys: string[], _signal: AbortSignal) => {
+        await new Promise((r) => setTimeout(r, 50));
+        return keys.map((k) => ({ id: k }));
+      }, 'id');
+
+      const promise = items.get('a');
+
+      await new Promise((r) => setTimeout(r, 0));
+      items.abort();
+
+      const result = await Promise.race([
+        promise.then(
+          () => 'fulfilled' as const,
+          (e) => e as unknown,
+        ),
+        new Promise((r) => setTimeout(() => r('timeout' as const), 250)),
+      ]);
+
+      expect(result).not.toBe('timeout');
+      expect(result).not.toBe('fulfilled');
+      expect(result).toBeInstanceOf(DOMException);
+      expect((result as DOMException).name).toBe('AbortError');
+    });
+
     it('should remove per-request abort listener after request settles', async () => {
       const originalAdd = AbortSignal.prototype.addEventListener;
       const originalRemove = AbortSignal.prototype.removeEventListener;

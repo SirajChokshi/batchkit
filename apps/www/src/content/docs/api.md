@@ -66,7 +66,7 @@ Dispatch pending requests immediately, bypassing the scheduler.
 abort(): void
 ```
 
-Cancel all pending requests. Rejects with `AbortError`.
+Cancel all pending and in-flight requests. Rejects with `AbortError`. The signal passed to your batch function is also aborted.
 
 ### .name
 

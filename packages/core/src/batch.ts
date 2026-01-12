@@ -145,6 +145,14 @@ export function batch<K, V>(
 
       if (signal.aborted) {
         tracer.emit({ type: 'abort', batchId });
+        for (const requests of keyToRequests.values()) {
+          for (const request of requests) {
+            if (!request.aborted) {
+              request.aborted = true;
+              request.reject(new DOMException('Aborted', 'AbortError'));
+            }
+          }
+        }
         return;
       }
 
@@ -319,8 +327,17 @@ export function batch<K, V>(
 
   function abort(): void {
     for (const request of queue) {
-      request.aborted = true;
-      request.reject(new DOMException('Aborted', 'AbortError'));
+      if (!request.aborted) {
+        request.aborted = true;
+        request.reject(new DOMException('Aborted', 'AbortError'));
+      }
+    }
+
+    for (const request of inFlightRequests) {
+      if (!request.aborted) {
+        request.aborted = true;
+        request.reject(new DOMException('Aborted', 'AbortError'));
+      }
     }
     queue = [];
     pendingKeys.clear();
