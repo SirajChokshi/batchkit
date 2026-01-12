@@ -42,26 +42,15 @@ export function createTracer<K>(
   let batchCounter = 0;
 
   function emit(event: TraceEventData<K>) {
-    if (!handler) {
-      const devtoolsEmitter = getDevtoolsEmitter?.();
-      if (!devtoolsEmitter) return;
-
-      const timestamp = performance.now();
-      const fullEvent = {
-        ...event,
-        timestamp,
-      } as TraceEvent<K>;
-      devtoolsEmitter(fullEvent);
-      return;
-    }
-
     const devtoolsEmitter = getDevtoolsEmitter?.();
+    if (!handler && !devtoolsEmitter) return;
+
     const timestamp = performance.now();
     const fullEvent = {
       ...event,
       timestamp,
     } as TraceEvent<K>;
-    handler(fullEvent);
+    handler?.(fullEvent);
     devtoolsEmitter?.(fullEvent);
   }
 
