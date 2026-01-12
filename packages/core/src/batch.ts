@@ -1,7 +1,7 @@
 import { BatchError } from './errors';
 import { createIndexedMatcher, isIndexed, normalizeMatch } from './match';
 import { microtask, wait } from './schedulers';
-import { createTracer, registerBatcher } from './trace';
+import { createTracer, hasDevtoolsHook, registerBatcher } from './trace';
 import type {
   Batcher,
   BatchFn,
@@ -30,13 +30,30 @@ export function batch<K, V>(
   const scheduler: Scheduler = schedule ?? (waitMs ? wait(waitMs) : microtask);
 
   let devtoolsEmitter: ((event: TraceEvent) => void) | undefined;
-  const creationStack = new Error().stack;
+  let creationStack: string | undefined;
+  let didTryRegisterDevtools = false;
 
-  registerBatcher({ fn, name, stack: creationStack }, (emitter) => {
-    devtoolsEmitter = emitter;
+  function tryRegisterDevtools(): void {
+    if (didTryRegisterDevtools) return;
+    if (!hasDevtoolsHook()) return;
+    didTryRegisterDevtools = true;
+    creationStack ??= new Error().stack;
+    registerBatcher({ fn, name, stack: creationStack }, (emitter) => {
+      devtoolsEmitter = emitter;
+    });
+  }
+
+  // If devtools are already installed, register immediately.
+  tryRegisterDevtools();
+
+  const tracer = createTracer(name, traceHandler, () => {
+    // Allow devtools to be mounted after the batcher is created without
+    // retaining global references or capturing stacks unless a hook exists.
+    if (!devtoolsEmitter) {
+      tryRegisterDevtools();
+    }
+    return devtoolsEmitter;
   });
-
-  const tracer = createTracer(name, traceHandler, () => devtoolsEmitter);
 
   const matchFn = normalizeMatch(match);
   const isIndexedMatch = isIndexed(match);

@@ -40,34 +40,6 @@ describe('devtools hook registration', () => {
     );
   });
 
-  it('should queue batchers created before hook is set and register them when hook is set', async () => {
-    const onBatcherCreated = mock(() => undefined);
-    const hook: DevtoolsHook = { onBatcherCreated };
-
-    // Create batchers BEFORE hook is set
-    batch(async (keys: string[]) => keys.map((k) => ({ id: k })), 'id', {
-      name: 'first',
-    });
-    batch(async (keys: string[]) => keys.map((k) => ({ id: k })), 'id', {
-      name: 'second',
-    });
-
-    expect(onBatcherCreated).not.toHaveBeenCalled();
-
-    // Now set the hook - should flush the queue
-    __setDevtoolsHook(hook);
-
-    expect(onBatcherCreated).toHaveBeenCalledTimes(2);
-    expect(onBatcherCreated).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ name: 'first' }),
-    );
-    expect(onBatcherCreated).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ name: 'second' }),
-    );
-  });
-
   it('should call emitter on trace events after hook registration', async () => {
     const emitter = mock(() => {});
     const onBatcherCreated = mock(() => emitter);
@@ -107,23 +79,31 @@ describe('devtools hook registration', () => {
     expect(emitter.mock.calls.length).toBeGreaterThanOrEqual(4);
   });
 
-  it('should clear pending queue after hook is set', async () => {
-    const onBatcherCreated1 = mock(() => undefined);
-    const onBatcherCreated2 = mock(() => undefined);
-    const hook1: DevtoolsHook = { onBatcherCreated: onBatcherCreated1 };
-    const hook2: DevtoolsHook = { onBatcherCreated: onBatcherCreated2 };
+  it('should lazily register batcher after hook is installed', async () => {
+    const emitter = mock(() => {});
+    const onBatcherCreated = mock(() => emitter);
+    const hook: DevtoolsHook = { onBatcherCreated };
 
-    // Create batcher before any hook
-    batch(async (keys: string[]) => keys.map((k) => ({ id: k })), 'id', {
-      name: 'queued',
-    });
+    // Create batcher BEFORE hook
+    const users = batch(
+      async (keys: string[]) => keys.map((k) => ({ id: k })),
+      'id',
+      { name: 'lazy' },
+    );
 
-    // Set first hook - flushes queue
-    __setDevtoolsHook(hook1);
-    expect(onBatcherCreated1).toHaveBeenCalledTimes(1);
+    expect(onBatcherCreated).not.toHaveBeenCalled();
 
-    // Set second hook - queue should be empty now
-    __setDevtoolsHook(hook2);
-    expect(onBatcherCreated2).not.toHaveBeenCalled();
+    // Install hook - should not retroactively register batchers
+    __setDevtoolsHook(hook);
+    expect(onBatcherCreated).not.toHaveBeenCalled();
+
+    // First use should trigger registration and emit events
+    await users.get('test');
+
+    expect(onBatcherCreated).toHaveBeenCalledTimes(1);
+    expect(onBatcherCreated).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'lazy' }),
+    );
+    expect(emitter.mock.calls.length).toBeGreaterThanOrEqual(4);
   });
 });
