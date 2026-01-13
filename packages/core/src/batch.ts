@@ -356,6 +356,12 @@ export function batch<K, V>(
         removeAbortListener = () => {
           externalSignal.removeEventListener('abort', onAbort);
         };
+
+        // Signal may have been aborted by user callbacks (trace handler, key function)
+        // that run between the initial check and listener registration.
+        if (externalSignal.aborted) {
+          onAbort();
+        }
       }
 
       scheduleDispatch();

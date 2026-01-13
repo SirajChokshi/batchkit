@@ -337,6 +337,30 @@ describe('batch', () => {
       expect(result).toBeInstanceOf(DOMException);
       expect(result.name).toBe('AbortError');
     });
+
+    it('should handle abort triggered by user callback before listener registration', async () => {
+      const controller = new AbortController();
+
+      const items = batch(
+        async (keys: string[]) => keys.map((k) => ({ id: k })),
+        'id',
+        {
+          trace: () => {
+            // User's trace handler aborts synchronously during get()
+            // This happens after the initial aborted check but before
+            // the abort listener is registered.
+            controller.abort();
+          },
+        },
+      );
+
+      const result = await items
+        .get('a', { signal: controller.signal })
+        .catch((e) => e);
+
+      expect(result).toBeInstanceOf(DOMException);
+      expect(result.name).toBe('AbortError');
+    });
   });
 
   describe('name property', () => {
