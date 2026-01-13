@@ -254,6 +254,8 @@ export const Trace: Component<TraceProps> = (props) => {
                               onClick={() => copyToClipboard(location())}
                               onMouseOver={(e) => { e.currentTarget.style.background = '#44403c'; e.currentTarget.style.color = '#a8a29e'; }}
                               onMouseOut={(e) => { e.currentTarget.style.background = '#292524'; e.currentTarget.style.color = '#78716c'; }}
+                              onMouseDown={(e) => { e.currentTarget.style.background = '#57534e'; }}
+                              onMouseUp={(e) => { e.currentTarget.style.background = '#44403c'; }}
                             >
                               {copied() ? '✓' : 'Copy'}
                             </button>

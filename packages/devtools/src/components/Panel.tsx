@@ -187,6 +187,26 @@ const clearButtonStyle: JSX.CSSProperties = {
   cursor: 'pointer',
 };
 
+const buttonActiveStyle: JSX.CSSProperties = {
+  background: '#44403c',
+};
+
+function withActiveState(
+  el: HTMLElement,
+  baseBackground: string,
+  activeBackground = '#44403c'
+) {
+  el.addEventListener('mousedown', () => {
+    el.style.background = activeBackground;
+  });
+  el.addEventListener('mouseup', () => {
+    el.style.background = baseBackground;
+  });
+  el.addEventListener('mouseleave', () => {
+    el.style.background = baseBackground;
+  });
+}
+
 const bodyStyle: JSX.CSSProperties = {
   display: 'flex',
   flex: '1',
@@ -368,17 +388,24 @@ export const Panel: Component<PanelProps> = (props) => {
 
       <div class={props.panelClass} style={drawerStyle()}>
           <div
-            style={getResizeHandleStyle(position())}
+            style={{
+              ...getResizeHandleStyle(position()),
+              background: isResizing() ? '#44403c' : 'transparent',
+            }}
             onMouseDown={handleResizeStart}
-            onMouseOver={(e) => e.currentTarget.style.background = '#44403c'}
-            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+            onMouseOver={(e) => { if (!isResizing()) e.currentTarget.style.background = '#44403c'; }}
+            onMouseOut={(e) => { if (!isResizing()) e.currentTarget.style.background = 'transparent'; }}
           />
           <div style={headerStyle}>
             <div style={titleStyle}>
               <span style={{ color: '#78716c' }}>[=]</span>
               Devtools
             </div>
-            <button style={clearButtonStyle} onClick={handleClear}>
+            <button
+              style={clearButtonStyle}
+              onClick={handleClear}
+              ref={(el) => withActiveState(el, '#1c1917')}
+            >
               Clear
             </button>
           </div>
