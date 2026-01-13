@@ -4,11 +4,15 @@ import mdx from '@astrojs/mdx';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'astro/config';
+import pagefind from 'astro-pagefind';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  integrations: [svelte(), mdx()],
+  integrations: [svelte(), mdx(), pagefind()],
+  build: {
+    format: 'file',
+  },
   redirects: {
     '/docs': '/docs/guide',
   },

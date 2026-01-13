@@ -27,19 +27,19 @@ const {
   <div class="border border-stone-700 flex mb-2">
     <button 
       onclick={onLoadKey}
-      class="flex-1 px-2 py-1.5 text-sm font-mono text-stone-100 bg-stone-800 hover:bg-stone-700 cursor-pointer"
+      class="flex-1 px-2 py-1.5 text-sm font-mono text-stone-100 bg-stone-800 hover:bg-stone-700 active:bg-stone-600 cursor-pointer"
     >
       Load Key
     </button>
     <button 
       onclick={() => onLoadRandom(5)}
-      class="flex-1 px-2 py-1.5 text-sm font-mono text-stone-400 bg-stone-900 border-l border-stone-700 hover:bg-stone-800 hover:text-stone-100 cursor-pointer"
+      class="flex-1 px-2 py-1.5 text-sm font-mono text-stone-400 bg-stone-900 border-l border-stone-700 hover:bg-stone-800 hover:text-stone-100 active:bg-stone-700 cursor-pointer"
     >
       Load 5
     </button>
     <button 
       onclick={onLoadDuplicate}
-      class="flex-1 px-2 py-1.5 text-sm font-mono text-stone-400 bg-stone-900 border-l border-stone-700 hover:bg-stone-800 hover:text-stone-100 cursor-pointer"
+      class="flex-1 px-2 py-1.5 text-sm font-mono text-stone-400 bg-stone-900 border-l border-stone-700 hover:bg-stone-800 hover:text-stone-100 active:bg-stone-700 cursor-pointer"
     >
       Dup ×3
     </button>
@@ -48,14 +48,14 @@ const {
   <div class="border border-stone-700 flex mb-2">
     <button 
       onclick={() => onBurst(20)}
-      class="flex-1 px-2 py-1.5 text-sm font-mono text-stone-400 bg-stone-900 hover:bg-stone-800 hover:text-stone-100 cursor-pointer"
+      class="flex-1 px-2 py-1.5 text-sm font-mono text-stone-400 bg-stone-900 hover:bg-stone-800 hover:text-stone-100 active:bg-stone-700 cursor-pointer"
     >
       Burst 20
     </button>
     {#if schedulerType === 'manual'}
       <button 
         onclick={onFlush}
-        class="flex-1 px-2 py-1.5 text-sm font-mono text-stone-100 bg-stone-800 border-l border-stone-700 hover:bg-stone-700 cursor-pointer"
+        class="flex-1 px-2 py-1.5 text-sm font-mono text-stone-100 bg-stone-800 border-l border-stone-700 hover:bg-stone-700 active:bg-stone-600 cursor-pointer"
       >
         Flush
       </button>
@@ -66,7 +66,7 @@ const {
 
   <button 
     onclick={onClear}
-    class="w-full px-2 py-1 text-xs font-mono text-stone-500 bg-transparent hover:text-stone-300 hover:bg-stone-800 cursor-pointer"
+    class="w-full px-2 py-1 text-xs font-mono text-stone-500 bg-transparent hover:text-stone-300 hover:bg-stone-800 active:bg-stone-700 cursor-pointer"
   >
     Clear
   </button>
