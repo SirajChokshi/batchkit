@@ -1,4 +1,4 @@
-import { Component, JSX, Show } from 'solid-js';
+import { Component, JSX, Show, createSignal } from 'solid-js';
 import type { BatcherInfo, DevtoolsConfig } from '../core/types';
 import { useStore } from '../core/registry';
 
@@ -7,10 +7,9 @@ interface TraceProps {
 }
 
 function parseLocationParts(location: string): { path: string; line?: number; column?: number } | null {
-  // Handle URL-style locations (e.g., http://localhost:5173/src/file.ts:10:5)
   let cleanPath = location;
   
-  // Strip protocol and host for URL-style paths
+  // Strip protocol and host for URL-style paths (e.g., http://localhost:5173/src/file.ts:10:5)
   const urlMatch = location.match(/^https?:\/\/[^/]+(.*)$/);
   if (urlMatch) {
     cleanPath = urlMatch[1];
@@ -33,25 +32,20 @@ function parseLocationParts(location: string): { path: string; line?: number; co
 }
 
 function getEditorUrl(location: string, config: DevtoolsConfig): string | null {
+  if (!config.projectRoot) return null;
+  
   const parts = parseLocationParts(location);
   if (!parts) return null;
   
   let { path, line, column } = parts;
   
-  // If path is relative (starts with / but not absolute), prepend projectRoot
-  if (path.startsWith('/') && !path.startsWith('//') && config.projectRoot) {
-    // Remove leading slash since projectRoot should be absolute
+  // Prepend projectRoot to relative paths
+  if (path.startsWith('/') && !path.startsWith('//')) {
     path = config.projectRoot + path;
   } else if (!path.startsWith('/')) {
-    // Relative path without leading slash
-    if (config.projectRoot) {
-      path = config.projectRoot + '/' + path;
-    } else {
-      return null;
-    }
+    path = config.projectRoot + '/' + path;
   }
   
-  // Select editor protocol
   const editor = config.editor ?? 'vscode';
   const protocols: Record<string, string> = {
     vscode: 'vscode://file',
@@ -83,6 +77,27 @@ function getEditorUrl(location: string, config: DevtoolsConfig): string | null {
   }
   
   return url;
+}
+
+function formatDisplayLocation(location: string): string {
+  const parts = parseLocationParts(location);
+  if (!parts) return location;
+  
+  let display = parts.path;
+  // Shorten long paths - show last 2-3 segments
+  const segments = display.split('/').filter(Boolean);
+  if (segments.length > 3) {
+    display = '.../' + segments.slice(-3).join('/');
+  }
+  
+  if (parts.line !== undefined) {
+    display += `:${parts.line}`;
+    if (parts.column !== undefined) {
+      display += `:${parts.column}`;
+    }
+  }
+  
+  return display;
 }
 
 const containerStyle: JSX.CSSProperties = {
@@ -123,14 +138,30 @@ const valueStyle: JSX.CSSProperties = {
 
 const linkStyle: JSX.CSSProperties = {
   ...valueStyle,
-  display: 'block',
+  display: 'flex',
+  'align-items': 'center',
+  'justify-content': 'space-between',
+  gap: '8px',
   color: '#93c5fd',
   'text-decoration': 'none',
   cursor: 'pointer',
 };
 
-const linkHoverStyle: JSX.CSSProperties = {
-  'text-decoration': 'underline',
+const copyButtonStyle: JSX.CSSProperties = {
+  padding: '2px 6px',
+  background: '#292524',
+  border: '1px solid #44403c',
+  color: '#78716c',
+  'font-size': '10px',
+  cursor: 'pointer',
+  'flex-shrink': '0',
+};
+
+const hintStyle: JSX.CSSProperties = {
+  'font-size': '10px',
+  color: '#57534e',
+  'margin-top': '6px',
+  'font-style': 'italic',
 };
 
 const codeStyle: JSX.CSSProperties = {
@@ -152,6 +183,25 @@ const nameStyle: JSX.CSSProperties = {
 export const Trace: Component<TraceProps> = (props) => {
   const store = useStore();
   const config = () => store().config;
+  const [copied, setCopied] = createSignal(false);
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
 
   return (
     <div style={containerStyle}>
@@ -182,21 +232,52 @@ export const Trace: Component<TraceProps> = (props) => {
             <Show when={batcher().location}>
               {(location) => {
                 const editorUrl = () => getEditorUrl(location(), config());
+                const displayLocation = () => formatDisplayLocation(location());
+                const hasEditorConfig = () => Boolean(config().projectRoot);
+                
                 return (
                   <div style={sectionStyle}>
                     <div style={labelStyle}>Location</div>
                     <Show
                       when={editorUrl()}
-                      fallback={<div style={valueStyle}>{location()}</div>}
+                      fallback={
+                        <div>
+                          <div 
+                            style={{ ...valueStyle, display: 'flex', 'align-items': 'center', 'justify-content': 'space-between', gap: '8px' }}
+                            title={location()}
+                          >
+                            <span style={{ overflow: 'hidden', 'text-overflow': 'ellipsis', 'white-space': 'nowrap' }}>
+                              {displayLocation()}
+                            </span>
+                            <button
+                              style={copyButtonStyle}
+                              onClick={() => copyToClipboard(location())}
+                              onMouseOver={(e) => { e.currentTarget.style.background = '#44403c'; e.currentTarget.style.color = '#a8a29e'; }}
+                              onMouseOut={(e) => { e.currentTarget.style.background = '#292524'; e.currentTarget.style.color = '#78716c'; }}
+                            >
+                              {copied() ? '✓' : 'Copy'}
+                            </button>
+                          </div>
+                          <Show when={!hasEditorConfig()}>
+                            <div style={hintStyle}>
+                              Set projectRoot to enable click-to-open
+                            </div>
+                          </Show>
+                        </div>
+                      }
                     >
                       {(url) => (
                         <a
                           href={url()}
                           style={linkStyle}
-                          onMouseOver={(e) => Object.assign(e.currentTarget.style, linkHoverStyle)}
-                          onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
+                          title={`Open in ${config().editor ?? 'vscode'}`}
+                          onMouseOver={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+                          onMouseOut={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
                         >
-                          {location()} ↗
+                          <span style={{ overflow: 'hidden', 'text-overflow': 'ellipsis', 'white-space': 'nowrap' }}>
+                            {displayLocation()}
+                          </span>
+                          <span style={{ color: '#57534e', 'flex-shrink': '0' }}>↗ Open</span>
                         </a>
                       )}
                     </Show>

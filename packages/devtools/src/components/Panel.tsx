@@ -64,7 +64,7 @@ function getDrawerBaseStyle(position: Position, size: number, isResizing: boolea
     'border-width': '0',
     display: 'flex',
     'flex-direction': 'column',
-    overflow: 'hidden',
+    overflow: 'visible',
     'z-index': '99998',
     'font-family': 'ui-monospace, monospace',
     color: '#d6d3d1',
@@ -115,7 +115,7 @@ function getResizeHandleStyle(position: Position): JSX.CSSProperties {
     case 'right':
       return {
         ...base,
-        left: '0',
+        left: '-3px',
         top: '0',
         bottom: '0',
         width: '6px',
@@ -124,7 +124,7 @@ function getResizeHandleStyle(position: Position): JSX.CSSProperties {
     case 'left':
       return {
         ...base,
-        right: '0',
+        right: '-3px',
         top: '0',
         bottom: '0',
         width: '6px',
@@ -133,7 +133,7 @@ function getResizeHandleStyle(position: Position): JSX.CSSProperties {
     case 'bottom':
       return {
         ...base,
-        top: '0',
+        top: '-3px',
         left: '0',
         right: '0',
         height: '6px',
@@ -191,6 +191,7 @@ const bodyStyle: JSX.CSSProperties = {
   display: 'flex',
   flex: '1',
   'min-height': '0',
+  overflow: 'hidden',
 };
 
 const sidebarStyle: JSX.CSSProperties = {
@@ -302,10 +303,7 @@ export const Panel: Component<PanelProps> = (props) => {
       if (pos === 'left') {
         delta = -delta;
       }
-      if (pos === 'bottom') {
-        delta = delta;
-      }
-
+  
       const newSize = Math.min(MAX_SIZE, Math.max(MIN_SIZE, startSize + delta));
       setSize(newSize);
     };
