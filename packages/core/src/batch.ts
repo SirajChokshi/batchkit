@@ -356,6 +356,12 @@ export function batch<K, V>(
         removeAbortListener = () => {
           externalSignal.removeEventListener('abort', onAbort);
         };
+
+        // Handle race: signal may have aborted between initial check and addEventListener.
+        // Adding a listener to an already-aborted signal does NOT replay the event.
+        if (externalSignal.aborted) {
+          onAbort();
+        }
       }
 
       scheduleDispatch();
