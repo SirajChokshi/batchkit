@@ -357,7 +357,8 @@ export function batch<K, V>(
           externalSignal.removeEventListener('abort', onAbort);
         };
 
-        // Handle race: signal may have aborted between initial check and addEventListener.
+        // Signal may have been aborted by user callbacks (trace handler, key function)
+        // that run between the initial check and listener registration.
         if (externalSignal.aborted) {
           onAbort();
         }

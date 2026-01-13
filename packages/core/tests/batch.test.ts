@@ -338,23 +338,26 @@ describe('batch', () => {
       expect(result.name).toBe('AbortError');
     });
 
-    it('should handle abort race between initial check and listener registration', async () => {
+    it('should handle abort triggered by user callback before listener registration', async () => {
+      const controller = new AbortController();
+
       const items = batch(
         async (keys: string[]) => keys.map((k) => ({ id: k })),
         'id',
-        { wait: 100 },
+        {
+          trace: () => {
+            // User's trace handler aborts synchronously during get()
+            // This happens after the initial aborted check but before
+            // the abort listener is registered.
+            controller.abort();
+          },
+        },
       );
 
-      const controller = new AbortController();
+      const result = await items
+        .get('a', { signal: controller.signal })
+        .catch((e) => e);
 
-      const promise = items.get('a', { signal: controller.signal });
-
-      // Abort synchronously - this tests the race window fix
-      // where the signal aborts after the initial check but the listener
-      // should still catch it via the post-addEventListener re-check
-      controller.abort();
-
-      const result = await promise.catch((e) => e);
       expect(result).toBeInstanceOf(DOMException);
       expect(result.name).toBe('AbortError');
     });
