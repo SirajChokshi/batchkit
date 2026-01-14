@@ -33,7 +33,7 @@ const isDocs = currentPath.startsWith('/docs');
           <a href="/" class:list={["text-sm font-mono", isPlayground ? "text-stone-100" : "text-stone-500 hover:bg-stone-100 hover:text-stone-900"]}>playground</a>
           <a href="/docs" class:list={["text-sm font-mono", isDocs ? "text-stone-100" : "text-stone-500 hover:bg-stone-100 hover:text-stone-900"]}>docs</a>
         </nav>
-        <div class="ml-auto flex items-center gap-4">
+        <div class="ml-auto items-center gap-4 sm:flex hidden">
           <a 
             href="https://github.com/sirajchokshi/batchkit" 
             target="_blank" 
@@ -60,5 +60,16 @@ const isDocs = currentPath.startsWith('/docs');
     <main class="mx-auto max-w-7xl px-4 sm:px-6 xl:px-0">
       <slot />
     </main>
+    <script>
+      document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+          e.preventDefault();
+          const searchInput = document.querySelector('.pagefind-ui__search-input');
+          if (searchInput instanceof HTMLInputElement) {
+            searchInput.focus();
+          }
+        }
+      });
+    </script>
   </body>
 </html>

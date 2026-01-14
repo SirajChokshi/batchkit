@@ -10,8 +10,26 @@
   --pagefind-ui-font: var(--font-mono);
 }
 
-.pagefind-ui input {
-  width: 16rem;
+.pagefind-ui__form::before {
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  left: 0.6125rem !important;
+  width: 0.75rem !important;
+  height: 0.75rem !important;
+}
+
+.pagefind-ui__search-input {
+  width: 16rem !important;
+  height: 2rem !important;
+  padding: 0 calc(3rem * var(--pagefind-ui-scale)) 0 1.875rem !important;
+
+  font-size: 0.75rem !important;
+  font-weight: normal !important;
+}
+
+.pagefind-ui input::placeholder {
+  opacity: 1;
+  color: white;
 }
 
 .pagefind-ui input:focus {
@@ -30,7 +48,7 @@
 .pagefind-ui .pagefind-ui__drawer:not(.pagefind-ui__hidden) {
   position: absolute;
   right: 0;
-  margin-top: 0.5rem;
+  margin-top: calc(0.5rem - 1px) !important;
   z-index: 9999;
   padding: 0 1em 0.5em;
   width: 24rem;
@@ -40,10 +58,55 @@
   background-color: var(--pagefind-ui-background);
 }
 
-.pagefind-ui .pagefind-ui__result-link {
-  color: var(--pagefind-ui-primary);
+.pagefind-ui__search-clear {
+  width: auto !important;
+  padding: 0 0.5rem !important;
+  font-size: 0.6125rem !important;
 }
 
-.pagefind-ui .pagefind-ui__result-excerpt {
-  color: var(--pagefind-ui-text);
+.pagefind-ui__search-clear:hover {
+  background-color: var(--color-stone-800) !important;
+}
+
+.pagefind-ui__result-nested {
+  padding-top: 0.5rem !important;
+}
+
+.pagefind-ui__result-nested:not(:last-child) {
+  padding-bottom: 0.5rem !important;
+}
+
+.pagefind-ui__result-nested:last-child {
+  border-bottom: none !important;
+  padding-bottom: 0.5rem !important;
+}
+
+.pagefind-ui__result:last-child {
+  border-bottom: none !important;
+  padding-bottom: 0.5rem !important;
+}
+
+.pagefind-ui__result-nested .pagefind-ui__result-link::before {
+  content: "↳" !important;
+  margin-right: 0.25rem !important;
+  margin-left: 0.25rem !important;
+}
+
+.pagefind-ui__result-nested .pagefind-ui__result-link {
+  font-size: 0.75rem !important;
+}
+
+.pagefind-ui__result-nested {
+  padding-left: 0.875rem !important;
+}
+
+.pagefind-ui__result-excerpt, .pagefind-ui__message {
+  color: var(--color-stone-400);
+  font-size: 0.6125rem !important;
+  user-select: none !important;
+}
+
+.pagefind-ui__result-link  {
+  color: var(--pagefind-ui-primary);
+  font-size: 0.875rem !important;
 }
