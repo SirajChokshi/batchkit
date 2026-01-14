@@ -106,7 +106,7 @@
   user-select: none !important;
 }
 
-.pagefind-ui__result-link  {
+.pagefind-ui__result-link {
   color: var(--pagefind-ui-primary);
   font-size: 0.875rem !important;
 }

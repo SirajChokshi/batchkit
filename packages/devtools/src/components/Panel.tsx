@@ -187,10 +187,6 @@ const clearButtonStyle: JSX.CSSProperties = {
   cursor: 'pointer',
 };
 
-const buttonActiveStyle: JSX.CSSProperties = {
-  background: '#44403c',
-};
-
 function withActiveState(
   el: HTMLElement,
   baseBackground: string,
