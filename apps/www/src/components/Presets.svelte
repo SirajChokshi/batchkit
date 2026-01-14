@@ -196,7 +196,7 @@ const presets = [
       <button
         onclick={preset.action}
         disabled={isRunning}
-        class="w-full text-left px-3 py-2 border-b border-stone-800 hover:bg-stone-800 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+        class="w-full text-left px-3 py-2 border-b border-stone-800 hover:bg-stone-800 active:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
       >
         <div class="text-sm font-mono text-stone-100">{preset.name}</div>
         <div class="text-xs font-mono text-stone-500 mt-0.5">{preset.description}</div>

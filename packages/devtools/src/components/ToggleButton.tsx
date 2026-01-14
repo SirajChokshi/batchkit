@@ -1,4 +1,4 @@
-import { Component, JSX } from 'solid-js';
+import { Component, createSignal, JSX } from 'solid-js';
 
 interface ToggleButtonProps {
   isOpen: boolean;
@@ -31,9 +31,16 @@ const openButtonStyle: JSX.CSSProperties = {
   'border-color': '#57534e',
 };
 
+const activeStyle: JSX.CSSProperties = {
+  background: '#44403c',
+};
+
 export const ToggleButton: Component<ToggleButtonProps> = (props) => {
+  const [isActive, setIsActive] = createSignal(false);
+
   const buttonStyle = () => ({
     ...(props.isOpen ? openButtonStyle : baseButtonStyle),
+    ...(isActive() ? activeStyle : {}),
     ...props.style,
   });
 
@@ -42,6 +49,9 @@ export const ToggleButton: Component<ToggleButtonProps> = (props) => {
       class={props.class}
       style={buttonStyle()}
       onClick={props.onClick}
+      onMouseDown={() => setIsActive(true)}
+      onMouseUp={() => setIsActive(false)}
+      onMouseLeave={() => setIsActive(false)}
       title={props.isOpen ? 'Close BatchKit DevTools' : 'Open BatchKit DevTools'}
       aria-label={props.isOpen ? 'Close BatchKit DevTools' : 'Open BatchKit DevTools'}
     >

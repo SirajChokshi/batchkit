@@ -16,7 +16,7 @@ const currentPath = Astro.url.pathname;
 <Layout title={`${title} - batchkit`}>
   <div class="pt-6 relative">
     <!-- Left sidebar - hidden on mobile, shown on lg+ -->
-    <aside class="hidden lg:block fixed top-12 left-[max(0px,calc((100vw-80rem)/2))] w-56 h-[calc(100vh-3rem)] py-6 pr-8 overflow-y-auto">
+    <aside class="hidden lg:block fixed top-12 left-[max(0px,calc((100vw-80rem)/2))] w-56 h-[calc(100vh-3rem)] py-6 pr-8 overflow-y-auto" data-pagefind-ignore>
       <div class="text-stone-400 text-xs tracking-widest pl-4 mb-3 uppercase font-mono">Pages</div>
       <nav class="flex flex-col gap-0.5">
         {sorted.map((doc) => (
@@ -49,12 +49,12 @@ const currentPath = Astro.url.pathname;
     </nav>
 
     <!-- Main content -->
-    <article class="prose prose-invert max-w-none lg:ml-56 lg:pl-8 xl:mr-56 xl:pr-4 pb-32">
+    <article class="prose prose-invert max-w-none lg:ml-56 lg:pl-8 xl:mr-56 xl:pr-4 pb-32" data-pagefind-body>
       <slot />
     </article>
 
     <!-- Right sidebar - hidden on mobile and tablet, shown on xl+ -->
-    <aside class="hidden xl:block fixed top-12 right-[max(0px,calc((100vw-80rem)/2))] w-56 h-[calc(100vh-3rem)] py-6 pl-4 overflow-y-auto">
+    <aside class="hidden xl:block fixed top-12 right-[max(0px,calc((100vw-80rem)/2))] w-56 h-[calc(100vh-3rem)] py-6 pl-4 overflow-y-auto" data-pagefind-ignore>
       <TableOfContents client:load />
     </aside>
   </div>
