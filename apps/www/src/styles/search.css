@@ -1,0 +1,49 @@
+/* Pagefind customization via CSS variables */
+.pagefind-ui {
+  --pagefind-ui-scale: 0.5;
+  --pagefind-ui-primary: var(--color-stone-50);
+  --pagefind-ui-text: var(--color-stone-300);
+  --pagefind-ui-background: var(--color-stone-950);
+  --pagefind-ui-border: var(--color-stone-700);
+  --pagefind-ui-border-width: 1px;
+  --pagefind-ui-border-radius: 0;
+  --pagefind-ui-font: var(--font-mono);
+}
+
+.pagefind-ui input {
+  width: 16rem;
+}
+
+.pagefind-ui input:focus {
+  outline: none;
+}
+
+.pagefind-ui.yellow {
+  --pagefind-ui-background: var(--color-amber-500);
+}
+
+.pagefind-ui.red {
+  --pagefind-ui-background: var(--color-rose-600);
+  width: 100%;
+}
+
+.pagefind-ui .pagefind-ui__drawer:not(.pagefind-ui__hidden) {
+  position: absolute;
+  right: 0;
+  margin-top: 0.5rem;
+  z-index: 9999;
+  padding: 0 1em 0.5em;
+  width: 24rem;
+  overflow-y: auto;
+  border-radius: 0;
+  border: 1px solid var(--pagefind-ui-border);
+  background-color: var(--pagefind-ui-background);
+}
+
+.pagefind-ui .pagefind-ui__result-link {
+  color: var(--pagefind-ui-primary);
+}
+
+.pagefind-ui .pagefind-ui__result-excerpt {
+  color: var(--pagefind-ui-text);
+}
