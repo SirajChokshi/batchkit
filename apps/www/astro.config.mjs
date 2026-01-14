@@ -11,7 +11,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   integrations: [svelte(), mdx(), pagefind()],
   build: {
-    format: 'file',
+    format: 'directory',
   },
   redirects: {
     '/docs': '/docs/guide',
