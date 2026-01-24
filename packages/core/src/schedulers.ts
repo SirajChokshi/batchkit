@@ -22,6 +22,11 @@ export function wait(ms: number): Scheduler {
 }
 
 export const onAnimationFrame: Scheduler = (dispatch) => {
+  if (typeof requestAnimationFrame === 'undefined') {
+    throw new Error(
+      'onAnimationFrame is only available in browser environments.',
+    );
+  }
   const id = requestAnimationFrame(dispatch);
   return () => cancelAnimationFrame(id);
 };
