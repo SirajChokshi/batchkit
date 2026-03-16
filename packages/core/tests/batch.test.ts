@@ -495,7 +495,44 @@ describe('batch', () => {
       await promise.catch(() => {});
 
       const types = events.map((e) => e.type);
-      expect(types).toContain('get');
+      expect(types).toEqual(['get', 'schedule', 'abort']);
+    });
+
+    it('should reuse scheduled batch id when flush dispatches queued work', async () => {
+      const events: TraceEvent<string>[] = [];
+
+      const items = batch(
+        async (keys: string[]) => keys.map((k) => ({ id: k })),
+        'id',
+        {
+          name: 'test',
+          wait: 10,
+          trace: (event) => events.push(event),
+        },
+      );
+
+      const promise = items.get('a');
+      await items.flush();
+      await promise;
+
+      const scheduleEvent = events.find(
+        (event): event is Extract<TraceEvent<string>, { type: 'schedule' }> =>
+          event.type === 'schedule',
+      );
+      const dispatchEvent = events.find(
+        (event): event is Extract<TraceEvent<string>, { type: 'dispatch' }> =>
+          event.type === 'dispatch',
+      );
+      const resolveEvent = events.find(
+        (event): event is Extract<TraceEvent<string>, { type: 'resolve' }> =>
+          event.type === 'resolve',
+      );
+
+      expect(scheduleEvent).toBeDefined();
+      expect(dispatchEvent).toBeDefined();
+      expect(resolveEvent).toBeDefined();
+      expect(dispatchEvent?.batchId).toBe(scheduleEvent?.batchId);
+      expect(resolveEvent?.batchId).toBe(scheduleEvent?.batchId);
     });
   });
 
@@ -816,6 +853,53 @@ describe('batch', () => {
       expect(capturedSignal).not.toBeNull();
       // @ts-expect-error - capturedSignal is not typed
       expect(capturedSignal?.aborted).toBe(true);
+    });
+
+    it('should emit matching schedule and abort trace events when a queued signal aborts before dispatch', async () => {
+      const events: TraceEvent<string>[] = [];
+
+      const items = batch(
+        async (keys: string[], signal: AbortSignal) => {
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => resolve(keys), 100);
+            signal.addEventListener('abort', () => {
+              clearTimeout(timeout);
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
+          });
+          return keys.map((k) => ({ id: k }));
+        },
+        'id',
+        {
+          wait: 10,
+          trace: (event) => events.push(event),
+        },
+      );
+
+      const controller = new AbortController();
+      const promise = items.get('a', { signal: controller.signal });
+
+      controller.abort();
+
+      await promise.catch(() => {});
+
+      const scheduleEvent = events.find(
+        (event): event is Extract<TraceEvent<string>, { type: 'schedule' }> =>
+          event.type === 'schedule',
+      );
+      const abortEvent = events.find(
+        (event): event is Extract<TraceEvent<string>, { type: 'abort' }> =>
+          event.type === 'abort',
+      );
+
+      expect(events.map((event) => event.type)).toEqual([
+        'get',
+        'schedule',
+        'abort',
+      ]);
+      expect(scheduleEvent).toBeDefined();
+      expect(abortEvent).toBeDefined();
+      expect(abortEvent?.batchId).toBe(scheduleEvent?.batchId);
     });
 
     it('should not abort underlying fetch when only some requests are aborted', async () => {

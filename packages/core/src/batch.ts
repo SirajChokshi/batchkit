@@ -64,6 +64,7 @@ export function batch<K, V>(
   const activeRequests = new Set<PendingRequest<K, V>>();
   let cleanup: (() => void) | null = null;
   let isScheduled = false;
+  let scheduledBatchId: string | null = null;
 
   interface InFlightChunk {
     readonly batchId: string;
@@ -92,6 +93,7 @@ export function batch<K, V>(
 
     isScheduled = true;
     const batchId = tracer.nextBatchId();
+    scheduledBatchId = batchId;
 
     tracer.emit({
       type: 'schedule',
@@ -100,17 +102,21 @@ export function batch<K, V>(
     });
 
     cleanup = scheduler(() => {
+      cleanup = null;
       isScheduled = false;
+      scheduledBatchId = null;
       dispatch(batchId);
     });
   }
 
   async function dispatch(batchId?: string): Promise<void> {
+    const traceBatchId = batchId ?? scheduledBatchId ?? tracer.nextBatchId();
     const activeQueue = queue.filter((req) => !req.aborted);
 
     if (activeQueue.length === 0) {
       queue = [];
       pendingKeys.clear();
+      scheduledBatchId = null;
       return;
     }
 
@@ -119,6 +125,7 @@ export function batch<K, V>(
       cleanup = null;
     }
     isScheduled = false;
+    scheduledBatchId = null;
 
     const batch = activeQueue;
     for (const request of batch) {
@@ -137,8 +144,7 @@ export function batch<K, V>(
     }
 
     for (let i = 0; i < chunks.length; i++) {
-      const chunkBatchId =
-        i === 0 ? (batchId ?? tracer.nextBatchId()) : tracer.nextBatchId();
+      const chunkBatchId = i === 0 ? traceBatchId : tracer.nextBatchId();
       await processChunk(chunks[i], chunkBatchId);
     }
   }
@@ -343,11 +349,15 @@ export function batch<K, V>(
             if (allQueuedAborted) {
               queue = [];
               pendingKeys.clear();
+              if (scheduledBatchId) {
+                tracer.emit({ type: 'abort', batchId: scheduledBatchId });
+              }
               if (cleanup) {
                 cleanup();
                 cleanup = null;
               }
               isScheduled = false;
+              scheduledBatchId = null;
             }
           }
         };
@@ -396,6 +406,9 @@ export function batch<K, V>(
     }
     queue = [];
     pendingKeys.clear();
+    if (scheduledBatchId) {
+      tracer.emit({ type: 'abort', batchId: scheduledBatchId });
+    }
 
     for (const chunk of inFlightChunks) {
       chunk.controller.abort();
@@ -406,6 +419,7 @@ export function batch<K, V>(
       cleanup = null;
     }
     isScheduled = false;
+    scheduledBatchId = null;
   }
 
   return {
