@@ -855,6 +855,53 @@ describe('batch', () => {
       expect(capturedSignal?.aborted).toBe(true);
     });
 
+    it('should emit matching schedule and abort trace events when a queued signal aborts before dispatch', async () => {
+      const events: TraceEvent<string>[] = [];
+
+      const items = batch(
+        async (keys: string[], signal: AbortSignal) => {
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => resolve(keys), 100);
+            signal.addEventListener('abort', () => {
+              clearTimeout(timeout);
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
+          });
+          return keys.map((k) => ({ id: k }));
+        },
+        'id',
+        {
+          wait: 10,
+          trace: (event) => events.push(event),
+        },
+      );
+
+      const controller = new AbortController();
+      const promise = items.get('a', { signal: controller.signal });
+
+      controller.abort();
+
+      await promise.catch(() => {});
+
+      const scheduleEvent = events.find(
+        (event): event is Extract<TraceEvent<string>, { type: 'schedule' }> =>
+          event.type === 'schedule',
+      );
+      const abortEvent = events.find(
+        (event): event is Extract<TraceEvent<string>, { type: 'abort' }> =>
+          event.type === 'abort',
+      );
+
+      expect(events.map((event) => event.type)).toEqual([
+        'get',
+        'schedule',
+        'abort',
+      ]);
+      expect(scheduleEvent).toBeDefined();
+      expect(abortEvent).toBeDefined();
+      expect(abortEvent?.batchId).toBe(scheduleEvent?.batchId);
+    });
+
     it('should not abort underlying fetch when only some requests are aborted', async () => {
       let capturedSignal: AbortSignal | null = null;
 
