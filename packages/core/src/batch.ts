@@ -110,11 +110,13 @@ export function batch<K, V>(
   }
 
   async function dispatch(batchId?: string): Promise<void> {
+    const traceBatchId = batchId ?? scheduledBatchId ?? tracer.nextBatchId();
     const activeQueue = queue.filter((req) => !req.aborted);
 
     if (activeQueue.length === 0) {
       queue = [];
       pendingKeys.clear();
+      scheduledBatchId = null;
       return;
     }
 
@@ -123,6 +125,7 @@ export function batch<K, V>(
       cleanup = null;
     }
     isScheduled = false;
+    scheduledBatchId = null;
 
     const batch = activeQueue;
     for (const request of batch) {
@@ -141,8 +144,7 @@ export function batch<K, V>(
     }
 
     for (let i = 0; i < chunks.length; i++) {
-      const chunkBatchId =
-        i === 0 ? (batchId ?? tracer.nextBatchId()) : tracer.nextBatchId();
+      const chunkBatchId = i === 0 ? traceBatchId : tracer.nextBatchId();
       await processChunk(chunks[i], chunkBatchId);
     }
   }
@@ -391,7 +393,6 @@ export function batch<K, V>(
       cleanup = null;
     }
     isScheduled = false;
-    scheduledBatchId = null;
     await dispatch();
   }
 

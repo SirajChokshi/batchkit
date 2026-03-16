@@ -495,10 +495,44 @@ describe('batch', () => {
       await promise.catch(() => {});
 
       const types = events.map((e) => e.type);
-      expect(types).toContain('get');
-      expect(types).toContain('schedule');
-      expect(types).toContain('abort');
-      expect(types).not.toContain('dispatch');
+      expect(types).toEqual(['get', 'schedule', 'abort']);
+    });
+
+    it('should reuse scheduled batch id when flush dispatches queued work', async () => {
+      const events: TraceEvent<string>[] = [];
+
+      const items = batch(
+        async (keys: string[]) => keys.map((k) => ({ id: k })),
+        'id',
+        {
+          name: 'test',
+          wait: 10,
+          trace: (event) => events.push(event),
+        },
+      );
+
+      const promise = items.get('a');
+      await items.flush();
+      await promise;
+
+      const scheduleEvent = events.find(
+        (event): event is Extract<TraceEvent<string>, { type: 'schedule' }> =>
+          event.type === 'schedule',
+      );
+      const dispatchEvent = events.find(
+        (event): event is Extract<TraceEvent<string>, { type: 'dispatch' }> =>
+          event.type === 'dispatch',
+      );
+      const resolveEvent = events.find(
+        (event): event is Extract<TraceEvent<string>, { type: 'resolve' }> =>
+          event.type === 'resolve',
+      );
+
+      expect(scheduleEvent).toBeDefined();
+      expect(dispatchEvent).toBeDefined();
+      expect(resolveEvent).toBeDefined();
+      expect(dispatchEvent?.batchId).toBe(scheduleEvent?.batchId);
+      expect(resolveEvent?.batchId).toBe(scheduleEvent?.batchId);
     });
   });
 
