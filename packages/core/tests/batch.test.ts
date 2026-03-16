@@ -496,6 +496,9 @@ describe('batch', () => {
 
       const types = events.map((e) => e.type);
       expect(types).toContain('get');
+      expect(types).toContain('schedule');
+      expect(types).toContain('abort');
+      expect(types).not.toContain('dispatch');
     });
   });
 
